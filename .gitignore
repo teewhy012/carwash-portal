@@ -1,3 +1,6 @@
 node_modules/
 .env
-*.log
+.vercel/
+.DS_Store
+Thumbs.db
+server/node_modules/

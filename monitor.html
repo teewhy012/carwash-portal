@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SparkClean — Live Monitor</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <style>
+    *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+    :root{
+      --bg:#0a0a0f;--card:#12121a;--border:rgba(255,255,255,0.06);
+      --text:#f0f0f5;--text-secondary:#8888a0;--text-muted:#55556a;
+      --primary:#6366f1;--primary-light:#818cf8;--primary-glow:rgba(99,102,241,0.25);
+      --accent:#06b6d4;--accent-glow:rgba(6,182,212,0.2);
+      --success:#22c55e;--success-glow:rgba(34,197,94,0.15);
+      --warning:#f59e0b;--warning-glow:rgba(245,158,11,0.15);
+      --purple:#a855f7;--purple-glow:rgba(168,85,247,0.15);
+      --radius:12px;--font:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;
+    }
+    html,body{height:100%;overflow:hidden}
+    body{font-family:var(--font);background:var(--bg);color:var(--text);position:relative}
+    body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;opacity:0.025;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='600' viewBox='0 0 600 600'%3E%3Cdefs%3E%3ClinearGradient id='g1' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%236366f1'/%3E%3Cstop offset='100%25' stop-color='%2306b6d4'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cg fill='none' stroke='url(%23g1)' stroke-width='1.5'%3E%3Cpath d='M50 80 Q60 40 70 80 Q60 120 50 80Z' transform='rotate(15 60 80)'/%3E%3Ccircle cx='200' cy='120' r='25'/%3E%3Ccircle cx='200' cy='120' r='18'/%3E%3Ccircle cx='200' cy='120' r='10'/%3E%3Cpath d='M350 60 Q360 20 370 60 Q360 100 350 60Z' transform='rotate(-10 360 60)'/%3E%3Cpath d='M480 150 Q490 110 500 150 Q490 190 480 150Z' transform='rotate(25 490 150)'/%3E%3Cpath d='M250 280 c0-20 15-35 35-35 s35 15 35 35 v30 c0 5-5 10-10 10 h-50 c-5 0-10-5-10-10z' stroke-width='2'/%3E%3Ccircle cx='280' cy='340' r='12'/%3E%3Cpath d='M380 300 Q390 260 400 300 Q390 340 380 300Z' transform='rotate(-20 390 300)'/%3E%3Ccircle cx='500' cy='400' r='20'/%3E%3Ccircle cx='500' cy='400' r='12'/%3E%3Cpath d='M80 450 Q90 410 100 450 Q90 490 80 450Z' transform='rotate(30 90 450)'/%3E%3Cpath d='M300 480 Q310 440 320 480 Q310 520 300 480Z'/%3E%3Cpath d='M450 500 Q460 460 470 500 Q460 540 450 500Z' transform='rotate(-15 460 500)'/%3E%3Cpath d='M150 550 Q160 510 170 550 Q160 590 150 550Z' transform='rotate(10 160 550)'/%3E%3C/g%3E%3C/svg%3E") repeat;transform:translateZ(0)}
+
+    .topbar{display:flex;justify-content:space-between;align-items:center;padding:6px 16px;border-bottom:1px solid var(--border);background:rgba(10,10,15,0.95);position:sticky;top:0;z-index:10}
+    .topbar-left{display:flex;align-items:center;gap:8px}
+    .brand{display:flex;align-items:center;gap:6px}
+    .brand-icon{width:20px;height:20px;border-radius:5px;background:linear-gradient(135deg,var(--primary),var(--accent));display:flex;align-items:center;justify-content:center;color:#fff;font-size:0.45rem;font-weight:800}
+    .brand-name{font-size:0.7rem;font-weight:700}
+    .live-badge{display:flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.2)}
+    .live-dot{width:5px;height:5px;border-radius:50%;background:var(--success);animation:pulse 1.5s ease infinite}
+    @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.7)}}
+    .live-text{font-size:0.5rem;font-weight:700;color:var(--success);text-transform:uppercase;letter-spacing:.06em}
+    .topbar-right{display:flex;align-items:center;gap:8px}
+    .clock{font-size:0.85rem;font-weight:800;color:var(--text-secondary);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+    .stat-pill{padding:2px 8px;border-radius:999px;font-size:0.55rem;font-weight:700}
+    .stat-active{background:var(--primary-glow);color:var(--primary-light)}
+    .stat-done{background:var(--success-glow);color:var(--success)}
+
+    .board{display:grid;grid-template-columns:repeat(4,1fr);height:calc(100vh - 36px);overflow:hidden}
+    .column{display:flex;flex-direction:column;border-right:1px solid var(--border);overflow:hidden}
+    .column:last-child{border-right:none}
+    .col-header{display:flex;align-items:center;justify-content:space-between;padding:6px 10px;border-bottom:2px solid var(--border);flex-shrink:0}
+    .col-header-left{display:flex;align-items:center;gap:6px}
+    .col-count{font-size:0.75rem;font-weight:900;min-width:22px;height:22px;display:flex;align-items:center;justify-content:center;border-radius:6px}
+    .col-label{font-size:0.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-secondary)}
+    .col-header.c-new{border-bottom-color:var(--warning)}.col-header.c-new .col-count{background:var(--warning-glow);color:var(--warning)}
+    .col-header.c-progress{border-bottom-color:var(--purple)}.col-header.c-progress .col-count{background:var(--purple-glow);color:var(--purple)}
+    .col-header.c-completed{border-bottom-color:var(--success)}.col-header.c-completed .col-count{background:var(--success-glow);color:var(--success)}
+    .col-header.c-ready{border-bottom-color:var(--accent)}.col-header.c-ready .col-count{background:var(--accent-glow);color:var(--accent)}
+    .col-body{flex:1;overflow-y:auto;padding:6px;display:flex;flex-direction:column;gap:6px}
+    .col-body::-webkit-scrollbar{width:2px}
+    .col-body::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.08);border-radius:2px}
+
+    .card{padding:8px 10px;border-radius:8px;border:1px solid var(--border);animation:slideIn .3s ease;transition:border-color .2s}
+    .card:hover{border-color:rgba(255,255,255,0.1)}
+    .card-plate{font-size:0.85rem;font-weight:800;letter-spacing:.05em;font-family:'Courier New',monospace;margin-bottom:2px;line-height:1}
+    .card-svc{font-size:0.6rem;color:var(--text-secondary);margin-bottom:4px;line-height:1.2}
+    .card-bottom{display:flex;justify-content:space-between;align-items:center}
+    .card-time{font-size:0.55rem;color:var(--text-muted);font-variant-numeric:tabular-nums}
+    .card-staff{font-size:0.5rem;padding:1px 5px;border-radius:4px;background:rgba(245,158,11,0.1);color:#f59e0b;font-weight:600}
+    .card.card-new{border-left:3px solid var(--warning);background:rgba(245,158,11,0.03)}
+    .card.card-progress{border-left:3px solid var(--purple);background:rgba(168,85,247,0.03)}
+    .card.card-completed{border-left:3px solid var(--success);background:rgba(34,197,94,0.03)}
+    .card.card-ready{border-left:3px solid var(--accent);background:rgba(6,182,212,0.03)}
+    @keyframes slideIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+
+    .empty{display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-muted);font-size:0.9rem;text-align:center;padding:24px;opacity:.5}
+
+    .footer-bar{position:fixed;bottom:0;left:0;right:0;padding:4px 16px;background:rgba(10,10,15,0.9);border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;font-size:0.5rem;color:var(--text-muted);z-index:10}
+    .footer-bar .spark{color:var(--primary-light);font-weight:600}
+
+    @media(max-width:1024px){.board{grid-template-columns:repeat(2,1fr)}.column:nth-child(2){border-right:none}.column:nth-child(1),.column:nth-child(2){border-bottom:1px solid var(--border)}}
+    @media(max-width:600px){.board{grid-template-columns:1fr}.column{border-right:none;border-bottom:1px solid var(--border)}.column:last-child{border-bottom:none}}
+  </style>
+</head>
+<body>
+
+  <div class="topbar">
+    <div class="topbar-left">
+      <div class="brand"><div class="brand-icon">SC</div><span class="brand-name">SparkClean</span></div>
+      <div class="live-badge"><div class="live-dot"></div><span class="live-text">Live</span></div>
+    </div>
+    <div class="topbar-right">
+      <span class="stat-pill stat-active" id="statActive">0 active</span>
+      <span class="stat-pill stat-done" id="statDone">0 done today</span>
+      <span class="clock" id="dateStamp">--</span>
+      <span class="clock" id="clock">--:--:--</span>
+    </div>
+  </div>
+
+  <div class="board">
+    <div class="column">
+      <div class="col-header c-new"><div class="col-header-left"><span class="col-count" id="cntNew">0</span><span class="col-label">New Orders</span></div></div>
+      <div class="col-body" id="colNew"></div>
+    </div>
+    <div class="column">
+      <div class="col-header c-progress"><div class="col-header-left"><span class="col-count" id="cntProgress">0</span><span class="col-label">In Progress</span></div></div>
+      <div class="col-body" id="colProgress"></div>
+    </div>
+    <div class="column">
+      <div class="col-header c-completed"><div class="col-header-left"><span class="col-count" id="cntCompleted">0</span><span class="col-label">Completed</span></div></div>
+      <div class="col-body" id="colCompleted"></div>
+    </div>
+    <div class="column">
+      <div class="col-header c-ready"><div class="col-header-left"><span class="col-count" id="cntReady">0</span><span class="col-label">Ready for Pickup</span></div></div>
+      <div class="col-body" id="colReady"></div>
+    </div>
+  </div>
+
+  <div class="footer-bar">
+    <span>SparkClean Monitor — Auto-refreshes every 2s</span>
+    <span class="spark">sparkclean.app</span>
+  </div>
+
+  <script>
+    const DB_NAME = 'SparkCleanDB';
+    const DB_VERSION = 5;
+    const CURRENCY = '\u20A6';
+    let db = null;
+    let refreshTimer = null;
+    let clockTimer = null;
+
+    function openDB() {
+      return new Promise((resolve, reject) => {
+        const req = indexedDB.open(DB_NAME, DB_VERSION);
+        req.onupgradeneeded = (e) => {
+          const d = e.target.result;
+          if (!d.objectStoreNames.contains('orders')) d.createObjectStore('orders', { keyPath: 'id' });
+          if (!d.objectStoreNames.contains('receipts')) d.createObjectStore('receipts', { keyPath: 'id' });
+          if (!d.objectStoreNames.contains('customers')) d.createObjectStore('customers', { keyPath: 'plate' });
+          if (!d.objectStoreNames.contains('cashDrawer')) d.createObjectStore('cashDrawer', { keyPath: 'id' });
+          if (!d.objectStoreNames.contains('pendingSync')) d.createObjectStore('pendingSync', { keyPath: 'id', autoIncrement: true });
+          if (!d.objectStoreNames.contains('staff')) d.createObjectStore('staff', { keyPath: 'id' });
+          if (!d.objectStoreNames.contains('shiftHistory')) d.createObjectStore('shiftHistory', { keyPath: 'id' });
+        };
+        req.onsuccess = (e) => { db = e.target.result; resolve(db); };
+        req.onerror = (e) => reject(e);
+      });
+    }
+
+    function dbGetAll(store) {
+      return new Promise((resolve, reject) => {
+        if (!db) return reject('No DB');
+        const tx = db.transaction(store, 'readonly');
+        const req = tx.objectStore(store).getAll();
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = (e) => reject(e);
+      });
+    }
+
+    function updateClock() {
+      const now = new Date();
+      const el = document.getElementById('clock');
+      const dateEl = document.getElementById('dateStamp');
+      if (el) el.textContent = now.toLocaleTimeString();
+      if (dateEl) dateEl.textContent = now.toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' });
+    }
+
+    async function refresh() {
+      try {
+        const orders = await dbGetAll('orders');
+        const today = new Date().toISOString().split('T')[0];
+
+        const statuses = ['new', 'in-progress', 'completed', 'ready'];
+        const groups = { 'new': [], 'in-progress': [], 'completed': [], 'ready': [] };
+
+        orders.forEach(o => {
+          const s = o.orderStatus || o.status;
+          if (groups[s]) groups[s].push(o);
+        });
+
+        // Sort each group: newest first
+        statuses.forEach(s => {
+          groups[s].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+        });
+
+        // Counts
+        const set = (id, val) => { const e = document.getElementById(id); if (e) e.textContent = val; };
+        set('cntNew', groups['new'].length);
+        set('cntProgress', groups['in-progress'].length);
+        set('cntCompleted', groups['completed'].length);
+        set('cntReady', groups['ready'].length);
+
+        const active = groups['new'].length + groups['in-progress'].length;
+        const doneToday = orders.filter(o => {
+          const s = o.orderStatus || o.status;
+          return (s === 'completed' || s === 'ready') && (o.date === today);
+        }).length;
+        set('statActive', active + ' active');
+        set('statDone', doneToday + ' done today');
+
+        // Render cards
+        const bodies = { 'new': 'colNew', 'in-progress': 'colProgress', 'completed': 'colCompleted', 'ready': 'colReady' };
+        const cssClass = { 'new': 'card-new', 'in-progress': 'card-progress', 'completed': 'card-completed', 'ready': 'card-ready' };
+
+        statuses.forEach(status => {
+          const body = document.getElementById(bodies[status]);
+          if (!body) return;
+          if (groups[status].length === 0) {
+            body.innerHTML = '<div class="empty">No orders</div>';
+            return;
+          }
+          body.innerHTML = groups[status].map(o => {
+            const plate = o.plateNumber || 'WALK-IN';
+            const svcs = (o.services || []).map(s => s.name || s).join(', ');
+            const time = new Date(o.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            return `
+              <div class="card ${cssClass[status]}">
+                <div class="card-plate">${plate}</div>
+                <div class="card-svc">${svcs || 'Service'}</div>
+                <div class="card-bottom">
+                  <span class="card-time">${time}</span>
+                  <span class="card-staff">${o.operator || 'Staff'}</span>
+                </div>
+              </div>`;
+          }).join('');
+        });
+      } catch (e) {
+        console.warn('Monitor refresh error:', e);
+      }
+    }
+
+    (async function init() {
+      await openDB();
+      updateClock();
+      clockTimer = setInterval(updateClock, 1000);
+      await refresh();
+      refreshTimer = setInterval(refresh, 2000);
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SparkClean — Premium Car Wash Portal</title>
+  <link rel="stylesheet" href="styles.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+</head>
+<body>
+
+  <!-- OFFLINE BANNER -->
+  <div class="offline-banner hidden" id="offlineBanner">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="1" y1="1" x2="23" y2="23"/><path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"/><path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"/><path d="M10.71 5.05A16 16 0 0 1 22.56 9"/><path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>
+    Offline Mode — Data will sync when connected
+    <span class="sync-status" id="syncStatus"></span>
+  </div>
+
+  <!-- LOGIN SCREEN -->
+  <div class="login-screen" id="loginScreen">
+    <!-- Hero side -->
+    <div class="login-hero">
+      <div class="login-hero-bg"></div>
+      <div class="login-hero-overlay"></div>
+      <div class="login-hero-particles" id="loginParticles"></div>
+      <div class="floating-orb orb-1"></div>
+      <div class="floating-orb orb-2"></div>
+      <div class="floating-orb orb-3"></div>
+      <div class="login-hero-content">
+        <div class="landing-badge">Premium Car Wash Experience</div>
+        <h1 class="login-hero-title">Your Car Deserves<br><span class="gradient-text">The Best Care</span></h1>
+        <p class="login-hero-sub">Experience professional car wash and detailing services delivered with precision, speed, and care.</p>
+        <div class="landing-features">
+          <div class="lf-item"><div class="lf-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg></div><div class="lf-text"><strong>Abuja</strong><br>141 Garki Road, FCT</div></div>
+          <div class="lf-item"><div class="lf-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg></div><div class="lf-text"><strong>Lagos</strong><br>122 Ikeja GRA</div></div>
+          <div class="lf-item"><div class="lf-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg></div><div class="lf-text"><strong>Ogun State</strong><br>18 Lafenwa Junction</div></div>
+        </div>
+      </div>
+    </div>
+    <!-- Card side -->
+    <div class="login-card-side">
+      <div class="login-card">
+        <div class="login-brand">
+          <div class="login-brand-icon">
+            <svg viewBox="0 0 40 40" fill="none"><circle cx="20" cy="20" r="18" stroke="currentColor" stroke-width="2"/><path d="M12 26c0-4.4 3.6-8 8-8s8 3.6 8 8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="20" cy="14" r="4" fill="currentColor" opacity=".3"/><path d="M14 10l3 3M26 10l-3 3M20 8v2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          </div>
+          <h1 class="login-title">SparkClean</h1>
+          <p class="login-subtitle">Premium Car Wash Portal</p>
+        </div>
+        <form class="login-form" id="loginForm" onsubmit="handleLogin(event)">
+          <div class="login-field">
+            <label for="loginUsername">Username</label>
+            <div class="login-input-wrap">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+              <input type="text" id="loginUsername" class="login-input" placeholder="Enter username" autocomplete="username" autofocus />
+            </div>
+          </div>
+          <div class="login-field">
+            <label for="loginPassword">Password</label>
+            <div class="login-input-wrap">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              <input type="password" id="loginPassword" class="login-input" placeholder="Enter password" autocomplete="current-password" />
+              <button type="button" class="login-eye" onclick="toggleLoginPassword()" aria-label="Show password">
+                <svg id="eyeIcon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              </button>
+            </div>
+          </div>
+          <div class="login-error hidden" id="loginError">Invalid username or password</div>
+          <button type="submit" class="btn btn-primary login-btn" id="loginBtn">
+            <span id="loginBtnText">Sign In</span>
+            <span class="login-spinner hidden" id="loginSpinner"></span>
+          </button>
+        </form>
+        <div class="login-footer">SparkClean POS &copy; 2026</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOP NAV -->
+  <nav class="topnav hidden" id="topnav">
+    <div class="topnav-brand" onclick="navigateTo('landing')">
+      <div class="brand-icon">
+        <svg viewBox="0 0 40 40" fill="none"><circle cx="20" cy="20" r="18" stroke="currentColor" stroke-width="2"/><path d="M12 26c0-4.4 3.6-8 8-8s8 3.6 8 8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="20" cy="14" r="4" fill="currentColor" opacity=".3"/><path d="M14 10l3 3M26 10l-3 3M20 8v2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      </div>
+      <span class="brand-text">SparkClean</span>
+    </div>
+    <button class="hamburger" id="hamburger" onclick="toggleMobileNav()" aria-label="Menu">
+      <span></span><span></span><span></span>
+    </button>
+    <div class="topnav-links" id="topnavLinks">
+      <button class="nav-btn" data-view="operator" onclick="switchPortal('operator')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+        Orders
+      </button>
+      <button class="nav-btn" data-view="analytics" onclick="switchPortal('analytics')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 16l4-8 4 4 4-8"/></svg>
+        Dashboard
+      </button>
+      <button class="nav-btn" data-view="history" onclick="switchPortal('history')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        Receipts
+      </button>
+      <button class="nav-btn" data-view="customers" onclick="switchPortal('customers')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        Report
+      </button>
+      <button class="nav-btn" data-view="staff" onclick="switchPortal('staff')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Staff
+      </button>
+      <button class="nav-btn" data-view="cash" onclick="switchPortal('cash')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+        Cash
+      </button>
+      <button class="nav-btn" data-view="monitor" onclick="window.open('monitor.html','_blank')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        Monitor ↗
+      </button>
+      <button class="nav-btn nav-btn-logout" onclick="handleLogout()" title="Logout">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        Logout
+      </button>
+    </div>
+  </nav>
+
+  <!-- ============ LANDING ============ -->
+  <section class="view" id="view-landing">
+    <div class="landing-hero">
+      <div class="landing-bg-car"></div>
+      <div class="landing-overlay"></div>
+      <div class="landing-particles" id="particles"></div>
+      <div class="floating-orb orb-1"></div>
+      <div class="floating-orb orb-2"></div>
+      <div class="floating-orb orb-3"></div>
+      <div class="landing-content">
+        <div class="landing-badge">Premium Car Wash Experience</div>
+        <h1 class="landing-title">Your Car Deserves<br/><span class="gradient-text">The Best Care</span></h1>
+        <p class="landing-subtitle">Experience professional car wash and detailing services delivered with precision, speed, and care. From quick exterior washes to premium detailing, we make every vehicle look showroom-ready.</p>
+        <div class="landing-actions">
+          <button class="btn btn-primary btn-lg" onclick="switchPortal('customer')">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            Book Your Wash Today
+          </button>
+        </div>
+        <div class="landing-features">
+          <div class="lf-item"><div class="lf-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg></div><div class="lf-text"><strong>Abuja</strong><br/>141 Garki Road, FCT</div></div>
+          <div class="lf-item"><div class="lf-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg></div><div class="lf-text"><strong>Lagos</strong><br/>122 Ikeja GRA</div></div>
+          <div class="lf-item"><div class="lf-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg></div><div class="lf-text"><strong>Ogun State</strong><br/>18 Lafenwa Junction</div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ NEW SALE (POS) ============ -->
+  <section class="view hidden" id="view-customer">
+    <div class="customer-flow">
+
+      <!-- STEP 1: Plate Number -->
+      <div class="step active" id="step-plate">
+        <div class="step-container">
+          <div class="step-header">
+            <div class="step-number">1</div>
+            <h2>Vehicle Entry</h2>
+            <p>Enter car plate number (optional)</p>
+          </div>
+          <div class="plate-entry">
+            <div class="plate-input-group">
+              <div class="plate-icon">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="6" width="20" height="12" rx="2"/><text x="12" y="14" text-anchor="middle" fill="currentColor" stroke="none" font-size="7" font-weight="700">ABC</text></svg>
+              </div>
+              <input type="text" id="plateNumber" class="plate-input" placeholder="e.g. ABC-123-XY" maxlength="12" autocomplete="off" autofocus />
+              <p class="plate-hint">Enter plate number to track the vehicle (optional — can be skipped)</p>
+            </div>
+            <div class="existing-customer-hint hidden" id="existingCustomerHint"></div>
+            <div id="customerFields" style="display:none;margin-top:12px">
+              <div style="display:flex;gap:10px">
+                <div class="form-group" style="flex:1"><label>Customer Name</label><input type="text" id="customerNameInput" class="form-input" placeholder="Optional" /></div>
+                <div class="form-group" style="flex:1"><label>Phone Number</label><input type="tel" id="customerPhoneInput" class="form-input" placeholder="08012345678" /></div>
+              </div>
+              <div class="form-group" style="margin-top:8px"><label>Email</label><input type="email" id="customerEmailInput" class="form-input" placeholder="customer@email.com" /></div>
+            </div>
+            <div class="step-footer">
+              <div></div>
+              <div></div>
+              <button class="btn btn-primary" id="btnFromPlate" onclick="goTo('services')">Continue →</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- STEP 2: Service Selection -->
+      <div class="step" id="step-services">
+        <div class="step-container">
+          <div class="step-header">
+            <div class="step-number">2</div>
+            <h2>Select Services</h2>
+            <p>Choose one or more services</p>
+          </div>
+          <div class="services-grid" id="servicesGrid"></div>
+          <div class="discount-row">
+            <div class="form-group" style="margin:0">
+              <label>Discount</label>
+              <div class="discount-inputs">
+                <select id="discountType" class="form-select form-select-sm">
+                  <option value="none">No Discount</option>
+                  <option value="percent">Percentage (%)</option>
+                  <option value="fixed">Fixed Amount</option>
+                </select>
+                <input type="number" id="discountValue" class="form-input form-input-sm" placeholder="0" min="0" value="0" oninput="recalcTotal()" disabled />
+                <input type="text" id="discountReason" class="form-input form-input-sm" placeholder="Reason (optional)" style="max-width:200px" />
+              </div>
+            </div>
+          </div>
+          <div class="step-footer">
+            <button class="btn btn-ghost" onclick="goBack('plate')">← Back</button>
+            <div class="selected-summary" id="selectedSummary">No services selected</div>
+            <button class="btn btn-primary" id="btnToPreferences" disabled onclick="goTo('preferences')">Continue →</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- STEP 3: Preferences -->
+      <div class="step" id="step-preferences">
+        <div class="step-container">
+          <div class="step-header">
+            <div class="step-number">3</div>
+            <h2>Service Details</h2>
+            <p>Select service type and vehicle info</p>
+          </div>
+          <div class="preferences-form">
+            <div class="form-group">
+              <label>Service Model</label>
+              <div class="radio-group">
+                <label class="radio-card">
+                  <input type="radio" name="attendance" value="drive" checked onchange="selectAttendance(this)"/>
+                  <div class="radio-content">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 17h14M5 17l-1-5h16l-1 5M7 17v2M17 17v2"/><path d="M5 12l1-5h12l1 5"/></svg>
+                    <strong>Walk-In</strong>
+                    <span>Customer at location</span>
+                  </div>
+                </label>
+                <label class="radio-card">
+                  <input type="radio" name="attendance" value="pickup" onchange="selectAttendance(this)"/>
+                  <div class="radio-content">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0h4"/></svg>
+                    <strong>Pick-Up</strong>
+                    <span>We collect & return</span>
+                  </div>
+                </label>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="vehicleType">Vehicle Type</label>
+                <select id="vehicleType" class="form-select">
+                  <option value="sedan">Sedan / Saloon</option>
+                  <option value="suv">SUV / Crossover</option>
+                  <option value="pickup">Pickup Truck</option>
+                  <option value="truck">Truck / Van</option>
+                  <option value="bus">Bus / Large Vehicle</option>
+                  <option value="bike">Bike / Motorcycle</option>
+                  <option value="tricycle">Tricycle (Keke)</option>
+                  <option value="others">Others</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="operatorName">Handled By</label>
+                <select id="operatorName" class="form-select" onchange="updateContinueBtn()">
+                  <option value="">Select washer...</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          <div class="step-footer">
+            <button class="btn btn-ghost" onclick="goBack('services')">← Back</button>
+            <div></div>
+            <button class="btn btn-primary" id="btnToSummary" disabled onclick="goTo('summary')">Continue →</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- STEP 4: Order Summary -->
+      <div class="step" id="step-summary">
+        <div class="step-container">
+          <div class="step-header">
+            <div class="step-number">4</div>
+            <h2>Order Summary</h2>
+            <p>Review before payment</p>
+          </div>
+          <div class="summary-card" id="summaryCard"></div>
+          <div class="step-footer">
+            <button class="btn btn-ghost" onclick="goBack('preferences')">← Back</button>
+            <div></div>
+            <button class="btn btn-primary" onclick="goTo('payment')">Proceed to Payment →</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- STEP 5: Payment -->
+      <div class="step" id="step-payment">
+        <div class="step-container">
+          <div class="step-header">
+            <div class="step-number">5</div>
+            <h2>Payment</h2>
+            <p>Select payment method</p>
+          </div>
+          <div class="payment-options">
+            <button class="payment-card" id="payCash" onclick="selectPayment('cash')">
+              <div class="pc-icon"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M9 12h6M12 9v6"/></svg></div>
+              <h3>Cash</h3>
+              <p>Pay at counter</p>
+            </button>
+            <button class="payment-card" id="payOnline" onclick="selectPayment('online')">
+              <div class="pc-icon"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg></div>
+              <h3>Card / POS</h3>
+              <p>Card payment</p>
+              <div class="pc-badge">POS</div>
+            </button>
+          </div>
+          <div class="cash-amount-section hidden" id="cashAmountSection">
+            <div class="form-group">
+              <label>Amount Received</label>
+              <input type="number" id="cashReceived" class="form-input" placeholder="0.00" min="0" oninput="calcChange()"/>
+            </div>
+            <div class="change-display hidden" id="changeDisplay">
+              <span>Change</span>
+              <span class="change-amount" id="changeAmount">₦0</span>
+            </div>
+          </div>
+          <div class="transfer-section hidden" id="transferSection">
+            <div class="transfer-card">
+              <div class="transfer-header">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+                <span>Transfer to this Account</span>
+              </div>
+              <div class="transfer-detail"><span class="transfer-label">Bank</span><span class="transfer-value" id="transferBank"></span></div>
+              <div class="transfer-detail"><span class="transfer-label">Account Name</span><span class="transfer-value" id="transferName"></span></div>
+              <div class="transfer-detail"><span class="transfer-label">Account Number</span><span class="transfer-value transfer-number" id="transferNumber"></span></div>
+              <div class="transfer-amount-row"><span>Amount to Pay</span><span class="transfer-amount" id="transferAmount"></span></div>
+            </div>
+          </div>
+          <div class="step-footer">
+            <button class="btn btn-ghost" onclick="goBack('summary')">← Back</button>
+            <div></div>
+            <button class="btn btn-primary btn-lg" id="btnPay" disabled onclick="processPayment()">Confirm Payment</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- STEP 6: Confirmation + Receipt -->
+      <div class="step" id="step-confirmation">
+        <div class="step-container confirmation-container">
+          <div class="confetti-container" id="confetti"></div>
+          <div class="conf-icon">
+            <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M8 12l2.5 2.5L16 9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <h2>Payment Successful!</h2>
+          <p class="conf-subtitle" id="confSubtitle">Transaction completed</p>
+          <div class="conf-details" id="confDetails"></div>
+          <div class="conf-actions">
+            <button class="btn btn-primary" onclick="printReceipt()">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+              Print Receipt
+            </button>
+            <button class="btn btn-outline" onclick="emailReceipt()">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+              Email Receipt
+            </button>
+            <button class="btn btn-primary" onclick="whatsappReceipt()" style="background:#25d366;border-color:#25d366">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+              WhatsApp
+            </button>
+          </div>
+          <button id="btnNewSale" class="btn btn-primary btn-lg" style="margin-top:20px" onclick="resetBooking()">New Sale</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ OPERATOR / ORDERS ============ -->
+  <section class="view hidden" id="view-operator">
+    <div class="operator-layout">
+      <button class="sidebar-toggle" id="sidebarToggle" onclick="toggleSidebar()">☰</button>
+      <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+      <aside class="sidebar" id="sidebar">
+        <div class="sidebar-brand"><div class="brand-icon-sm">SC</div><span>SparkClean</span></div>
+        <nav class="sidebar-nav">
+          <button class="sidebar-link active" data-filter="all" onclick="filterOrders('all', this)">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+            All Orders <span class="badge" id="badgeAll">0</span>
+          </button>
+          <button class="sidebar-link" data-filter="new" onclick="filterOrders('new', this)">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            New <span class="badge badge-warning" id="badgeNew">0</span>
+          </button>
+          <button class="sidebar-link" data-filter="in-progress" onclick="filterOrders('in-progress', this)">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4"/></svg>
+            In Progress <span class="badge badge-purple" id="badgeInProgress">0</span>
+          </button>
+          <button class="sidebar-link" data-filter="completed" onclick="filterOrders('completed', this)">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+            Completed <span class="badge badge-success" id="badgeCompleted">0</span>
+          </button>
+          <button class="sidebar-link" data-filter="ready" onclick="filterOrders('ready', this)">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+            Ready <span class="badge badge-green" id="badgeReady">0</span>
+          </button>
+          <button class="sidebar-link" data-filter="cash" onclick="filterOrders('cash', this)">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+            Cash Pending <span class="badge badge-orange" id="badgeCash">0</span>
+          </button>
+        </nav>
+        <div class="sidebar-footer">
+          <div class="operator-info">
+            <div class="operator-avatar" id="sidebarAvatar">—</div>
+            <div class="operator-details"><strong id="sidebarOperatorName">Staff</strong><span id="sidebarOperatorRole">Staff</span></div>
+          </div>
+        </div>
+      </aside>
+      <main class="dashboard-main">
+        <div class="dashboard-header">
+          <div><h1 id="dashboardTitle">All Orders</h1><p id="dashboardSubtitle">Manage and track all customer orders</p></div>
+          <div class="dashboard-actions">
+            <div class="search-box">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <input type="text" placeholder="Search..." id="searchOrders" oninput="renderOrders()"/>
+            </div>
+          </div>
+        </div>
+        <div class="orders-grid" id="ordersGrid"></div>
+      </main>
+    </div>
+  </section>
+
+  <!-- ============ DASHBOARD ============ -->
+  <section class="view hidden" id="view-analytics">
+    <div class="analytics-page">
+      <div class="analytics-header">
+        <div>
+          <h1>Dashboard</h1>
+          <p style="color:var(--text-secondary);font-size:0.85rem;margin-top:2px">Business overview & key metrics</p>
+        </div>
+        <div class="analytics-period">
+          <button class="btn btn-sm" onclick="setAnalyticsPeriod('today', this)">Today</button>
+          <button class="btn btn-sm active" onclick="setAnalyticsPeriod('week', this)">This Week</button>
+          <button class="btn btn-sm" onclick="setAnalyticsPeriod('month', this)">This Month</button>
+          <button class="btn btn-sm" onclick="setAnalyticsPeriod('all', this)">All Time</button>
+        </div>
+      </div>
+
+      <!-- KPI ROW 1 -->
+      <div class="kpi-grid" id="kpiGrid"></div>
+
+      <!-- CHARTS ROW 1: Revenue Trend + Payment Split -->
+      <div class="charts-row">
+        <div class="chart-card">
+          <h3>Revenue Trend</h3>
+          <canvas id="salesChart" width="600" height="250"></canvas>
+        </div>
+        <div class="chart-card">
+          <h3>Payment Methods</h3>
+          <canvas id="servicesChart" width="300" height="250"></canvas>
+        </div>
+      </div>
+
+      <!-- CHARTS ROW 2: Service Popularity + Loyalty Breakdown -->
+      <div class="charts-row">
+        <div class="chart-card">
+          <h3>Service Popularity</h3>
+          <div id="servicePopularity"></div>
+        </div>
+        <div class="chart-card">
+          <h3>Loyalty Tier Distribution</h3>
+          <div id="loyaltyBreakdown"></div>
+        </div>
+      </div>
+
+      <!-- CHARTS ROW 3: Peak Hours + Top Customers -->
+      <div class="charts-row">
+        <div class="chart-card">
+          <h3>Peak Hours</h3>
+          <canvas id="peakHoursChart" width="600" height="220"></canvas>
+        </div>
+        <div class="chart-card">
+          <h3>Top Customers</h3>
+          <div id="topCustomers"></div>
+        </div>
+      </div>
+
+      <!-- ROW 4: Staff Performance + Cash Reconciliation + Recent Activity -->
+      <div class="charts-row" style="grid-template-columns:1fr 1fr 1fr">
+        <div class="chart-card">
+          <h3>Staff Leaderboard</h3>
+          <div id="staffTable"></div>
+        </div>
+        <div class="chart-card">
+          <h3>Cash Drawer Summary</h3>
+          <div id="cashReconciliation"></div>
+        </div>
+        <div class="chart-card">
+          <h3>Recent Transactions</h3>
+          <div id="recentTransactions"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ RECEIPT HISTORY ============ -->
+  <section class="view hidden" id="view-history">
+    <div class="history-page">
+      <div class="history-header">
+        <h1>Receipt History</h1>
+        <div class="history-actions">
+          <div class="search-box">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" placeholder="Search receipts..." id="searchReceipts" oninput="renderReceiptHistory()"/>
+          </div>
+          <select id="historyFilter" class="form-select form-select-sm" onchange="renderReceiptHistory()">
+            <option value="all">All Transactions</option>
+            <option value="sales">Sales Only</option>
+            <option value="refunds">Refunds Only</option>
+            <option value="discounts">With Discounts</option>
+          </select>
+          <div style="display:flex;align-items:center;gap:6px">
+            <label style="font-size:0.78rem;color:var(--text-secondary);white-space:nowrap">From</label>
+            <input type="date" id="historyDateFrom" class="form-input form-input-sm" onchange="renderReceiptHistory()" style="max-width:155px"/>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px">
+            <label style="font-size:0.78rem;color:var(--text-secondary);white-space:nowrap">To</label>
+            <input type="date" id="historyDateTo" class="form-input form-input-sm" onchange="renderReceiptHistory()" style="max-width:155px"/>
+          </div>
+        </div>
+      </div>
+      <div class="history-table-wrap">
+        <table class="history-table" id="historyTable">
+          <thead>
+            <tr>
+              <th>Receipt #</th>
+              <th>Date</th>
+              <th>Plate</th>
+              <th>Services</th>
+              <th>Subtotal</th>
+              <th>Discount</th>
+              <th>Total</th>
+              <th>Payment</th>
+              <th>Staff</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="historyBody"></tbody>
+        </table>
+      </div>
+      <div class="history-pagination" id="historyPagination"></div>
+    </div>
+  </section>
+
+  <!-- ============ REPORT ============ -->
+  <section class="view hidden" id="view-customers">
+    <div class="customers-page">
+      <div class="customers-header">
+        <h1>Customer Report</h1>
+        <div class="customers-actions">
+          <div class="search-box">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" placeholder="Search by plate or name..." id="searchCustomers" oninput="renderCustomers()"/>
+          </div>
+          <select id="customerSort" class="form-select form-select-sm" onchange="renderCustomers()">
+            <option value="recent">Most Recent</option>
+            <option value="visits">Most Visits</option>
+            <option value="spent">Highest Spender</option>
+            <option value="name">Alphabetical</option>
+          </select>
+          <div style="display:flex;align-items:center;gap:6px">
+            <label style="font-size:0.78rem;color:var(--text-secondary);white-space:nowrap">From</label>
+            <input type="date" id="customerDateFrom" class="form-input form-input-sm" onchange="renderCustomers()" style="max-width:155px"/>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px">
+            <label style="font-size:0.78rem;color:var(--text-secondary);white-space:nowrap">To</label>
+            <input type="date" id="customerDateTo" class="form-input form-input-sm" onchange="renderCustomers()" style="max-width:155px"/>
+          </div>
+          <button class="btn btn-sm" onclick="exportCustomerReport('csv')" style="background:var(--success);color:#fff">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Export CSV
+          </button>
+          <button class="btn btn-sm" onclick="exportCustomerReport('xlsx')" style="background:var(--primary);color:#fff">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Export Excel
+          </button>
+          <button class="btn btn-sm" onclick="emailBulkCustomers()" style="background:var(--accent);color:#fff">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+            Email Customers
+          </button>
+          <button class="btn btn-sm" onclick="whatsappBulkCustomers()" style="background:#25d366;color:#fff">
+            💬 WhatsApp
+          </button>
+          <button class="btn btn-sm btn-ghost" onclick="openEmailSettings()" title="Email Settings">⚙ Email</button>
+        </div>
+      </div>
+      <div class="customers-stats" id="customerStats"></div>
+      <div class="history-table-wrap">
+        <table class="history-table" id="customersTable">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Name</th>
+              <th>Plate Number</th>
+              <th>Phone</th>
+              <th>Visits</th>
+              <th>Total Spent</th>
+              <th>First Visit</th>
+              <th>Last Visit</th>
+              <th>Loyalty Tier</th>
+              <th>Last Services</th>
+            </tr>
+          </thead>
+          <tbody id="customersBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ CASH DRAWER ============ -->
+  <section class="view hidden" id="view-cash">
+    <div class="cash-page">
+      <div class="cash-header">
+        <h1>Cash Drawer Management</h1>
+        <div class="cash-shift-info" id="cashShiftInfo"></div>
+      </div>
+      <div class="cash-summary-grid" id="cashSummaryGrid"></div>
+      <div class="cash-actions-row">
+        <button class="btn btn-primary" onclick="openCashDrawerModal('cash-in')">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Cash In (Float)
+        </button>
+        <button class="btn btn-danger" onclick="openCashDrawerModal('cash-out')">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Cash Out (Expense)
+        </button>
+        <button class="btn btn-success" onclick="openReconciliation()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+          End Shift / Reconcile
+        </button>
+        <button class="btn" onclick="openCashDrawerModal('new-shift')" style="background:linear-gradient(135deg,#f97316,#ea580c);color:#fff;box-shadow:0 2px 12px rgba(249,115,22,0.3)">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+          New Shift
+        </button>
+        <button class="btn" onclick="exportCashDrawer('csv')" style="background:linear-gradient(135deg,#ef4444,#dc2626);color:#fff;box-shadow:0 2px 12px rgba(239,68,68,0.3)">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          Export CSV
+        </button>
+        <button class="btn" onclick="exportCashDrawer('excel')" style="background:linear-gradient(135deg,#3b82f6,#2563eb);color:#fff;box-shadow:0 2px 12px rgba(59,130,246,0.3)">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          Export Excel
+        </button>
+      </div>
+      <div class="cash-movements">
+        <h3>Cash Movement Log</h3>
+        <div class="movements-list" id="cashMovements"></div>
+      </div>
+      <div class="cash-movements" style="margin-top:24px">
+        <h3>Shift History (Audit Trail)</h3>
+        <div id="shiftHistoryList"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ STAFF MANAGEMENT ============ -->
+  <section class="view hidden" id="view-staff">
+    <div class="analytics-page">
+      <div class="analytics-header">
+        <div>
+          <h1>Staff Management</h1>
+          <p style="color:var(--text-secondary);font-size:0.85rem;margin-top:2px">Add, remove, and manage your team</p>
+        </div>
+        <button class="btn btn-primary" onclick="openAddStaffModal()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Add Staff
+        </button>
+      </div>
+      <div class="kpi-grid" id="staffKpis"></div>
+      <div class="chart-card" style="overflow:visible">
+        <h3>All Staff</h3>
+        <table class="staff-table" id="staffTableList">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Name</th>
+              <th>Role</th>
+              <th>Status</th>
+              <th>Orders Handled</th>
+              <th>Total Sales</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="staffListBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ MODALS ============ -->
+  <div class="modal-overlay hidden" id="modalOverlay" onclick="closeModal()">
+    <div class="modal" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <h3 id="modalTitle">Modal</h3>
+        <button class="modal-close" onclick="closeModal()">×</button>
+      </div>
+      <div class="modal-body" id="modalBody"></div>
+    </div>
+  </div>
+
+  <!-- RECEIPT PRINT TEMPLATE (hidden) -->
+  <div id="receiptPrintArea" class="receipt-print-area"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

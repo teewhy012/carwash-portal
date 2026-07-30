@@ -1,20 +1,14 @@
 {
-  "name": "carwash-portal",
+  "name": "sparkclean-portal",
   "version": "1.0.0",
-  "description": "Carwash Portal Backend",
-  "main": "src/index.js",
+  "private": true,
   "scripts": {
-    "start": "node src/index.js",
-    "dev": "nodemon src/index.js",
-    "migrate": "node src/migrations/run.js"
+    "dev": "vercel dev",
+    "deploy": "vercel --prod"
   },
   "dependencies": {
+    "express": "^4.18.2",
     "cors": "^2.8.5",
-    "dotenv": "^16.4.7",
-    "express": "^4.21.1",
-    "pg": "^8.13.1"
-  },
-  "devDependencies": {
-    "nodemon": "^3.1.7"
+    "dotenv": "^16.3.1"
   }
 }
