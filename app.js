@@ -10,7 +10,12 @@ const BANK_ACCOUNT = {
   bank: 'OPay',
   name: 'Dada Michael Temitayo',
 };
-let PAY_SERVER = localStorage.getItem('pay_server_url') || (location.port === '3000' || location.hostname === 'localhost' || location.hostname === '127.0.0.1' ? '' : `http://${location.hostname}:3000`);
+const PROD_BACKEND = 'https://carwash-api.onrender.com';
+let PAY_SERVER = localStorage.getItem('pay_server_url') || (
+  location.port === '3000' || location.hostname === 'localhost' || location.hostname === '127.0.0.1' || location.hostname.endsWith('.onrender.com')
+    ? ''
+    : PROD_BACKEND
+);
 const DB_NAME = 'SparkCleanDB';
 const DB_VERSION = 5;
 
