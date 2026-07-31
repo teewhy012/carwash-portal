@@ -7,3 +7,5 @@ server/node_modules/
 server.log
 server.err.log
 nssm.exe
+.vercel
+.env*
