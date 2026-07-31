@@ -10,7 +10,7 @@ const BANK_ACCOUNT = {
   bank: 'OPay',
   name: 'Dada Michael Temitayo',
 };
-let PAY_SERVER = localStorage.getItem('pay_server_url') || (location.hostname === 'localhost' ? 'http://localhost:3000' : '');
+let PAY_SERVER = localStorage.getItem('pay_server_url') || (location.port === '3000' || location.hostname === 'localhost' || location.hostname === '127.0.0.1' ? '' : `http://${location.hostname}:3000`);
 const DB_NAME = 'SparkCleanDB';
 const DB_VERSION = 5;
 
@@ -307,48 +307,206 @@ function escapeJS(str) {
   return String(str).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '\\"').replace(/\n/g, '\\n').replace(/\r/g, '\\r');
 }
 
-async function loadAllData() {
+/* ============ SERVER SYNC ============ */
+async function apiGet(path) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 5000);
   try {
-    state.receipts = await dbGetAll('receipts');
-    state.orders = await dbGetAll('orders');
-    const customers = await dbGetAll('customers');
-    state.customers = {};
-    customers.forEach(c => { state.customers[c.plate] = c; });
-    const drawers = await dbGetAll('cashDrawer');
-    if (drawers.length > 0) {
-      const loaded = drawers.find(d => d.id === 'drawer-active') || drawers[drawers.length - 1];
-      state.cashDrawer = {
-        id: loaded.id || 'drawer-active',
-        balance: loaded.balance || 0,
-        movements: loaded.movements || [],
-        shiftStart: loaded.shiftStart || null,
-        shiftId: loaded.shiftId || null,
-        staffInCharge: loaded.staffInCharge || null,
-      };
-    }
-    state.staff = await dbGetAll('staff');
-    if (state.staff.length === 0) {
-      const defaults = [
-        { id: 'staff-1', name: 'Admin', role: 'Supervisor', active: true },
-        { id: 'staff-2', name: 'Sarah Ahmad', role: 'Washer', active: true },
-        { id: 'staff-3', name: 'Mike Obi', role: 'Washer', active: true },
-        { id: 'staff-4', name: 'Grace Bello', role: 'Washer', active: true },
-      ];
-      for (const s of defaults) await dbPut('staff', s);
-      state.staff = defaults;
-    }
-    const history = await dbGetAll('shiftHistory');
-    state.shiftHistory = history.sort((a, b) => new Date(b.shiftEnd || b.shiftStart) - new Date(a.shiftEnd || a.shiftStart));
-  } catch (e) { console.warn('DB load error:', e); }
+    const resp = await fetch(`${PAY_SERVER}${path}`, { signal: ctrl.signal });
+    if (!resp.ok) throw new Error(`GET ${path} -> ${resp.status}`);
+    return await resp.json();
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
-async function saveReceipt(r) { await dbPut('receipts', r); }
-async function saveOrder(o) { await dbPut('orders', o); }
-async function saveCustomer(c) { await dbPut('customers', c); }
-async function saveCashDrawer(cd) { await dbPut('cashDrawer', cd); }
-async function saveShiftHistory(sh) { await dbPut('shiftHistory', sh); }
-async function saveStaff(s) { await dbPut('staff', s); }
-async function deleteStaffMember(id) { await dbDelete('staff', id); }
+async function apiPost(path, body) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 5000);
+  try {
+    const resp = await fetch(`${PAY_SERVER}${path}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: ctrl.signal,
+    });
+    if (!resp.ok) throw new Error(`POST ${path} -> ${resp.status}`);
+    return await resp.json();
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function docKeyFor(docType, payload) {
+  if (docType === 'customers') return payload.plate;
+  return payload.id;
+}
+
+async function serverPut(docType, payload) {
+  await apiPost('/api/pos/sync', {
+    docs: [{ doc_type: docType, doc_key: docKeyFor(docType, payload), payload }],
+  });
+}
+
+function serverUrlReachable() {
+  return PAY_SERVER !== null && PAY_SERVER !== undefined;
+}
+
+async function loadAllData() {
+  let serverLoaded = false;
+  if (serverUrlReachable()) {
+    try {
+      const snap = await apiGet('/api/pos/snapshot');
+      if (snap) {
+        state.receipts = (snap.receipts || []).filter(x => !x._deleted);
+        state.orders = (snap.orders || []).filter(x => !x._deleted);
+        state.customers = {};
+        (snap.customers || []).filter(c => !c._deleted).forEach(c => { state.customers[c.plate] = c; });
+        const drawers = (snap.cashDrawer || []).filter(x => !x._deleted);
+        if (drawers.length > 0) {
+          const loaded = drawers.find(d => d.id === 'drawer-active') || drawers[drawers.length - 1];
+          state.cashDrawer = {
+            id: loaded.id || 'drawer-active',
+            balance: loaded.balance || 0,
+            movements: loaded.movements || [],
+            shiftStart: loaded.shiftStart || null,
+            shiftId: loaded.shiftId || null,
+            staffInCharge: loaded.staffInCharge || null,
+          };
+        }
+        state.staff = (snap.staff || []).filter(x => !x._deleted);
+        if (state.staff.length === 0) {
+          const defaults = [
+            { id: 'staff-1', name: 'Admin', role: 'Supervisor', active: true },
+            { id: 'staff-2', name: 'Sarah Ahmad', role: 'Washer', active: true },
+            { id: 'staff-3', name: 'Mike Obi', role: 'Washer', active: true },
+            { id: 'staff-4', name: 'Grace Bello', role: 'Washer', active: true },
+          ];
+          for (const s of defaults) await saveStaff(s);
+          state.staff = defaults;
+        }
+        const history = (snap.shiftHistory || []).filter(x => !x._deleted);
+        state.shiftHistory = history.sort((a, b) => new Date(b.shiftEnd || b.shiftStart) - new Date(a.shiftEnd || a.shiftStart));
+        serverLoaded = true;
+        await mirrorToLocal();
+        await backfillFromLocal();
+      }
+    } catch (e) {
+      console.warn('Server load failed, using local cache:', e);
+    }
+  }
+
+  if (!serverLoaded) {
+    try {
+      state.receipts = await dbGetAll('receipts');
+      state.orders = await dbGetAll('orders');
+      const customers = await dbGetAll('customers');
+      state.customers = {};
+      customers.forEach(c => { state.customers[c.plate] = c; });
+      const drawers = await dbGetAll('cashDrawer');
+      if (drawers.length > 0) {
+        const loaded = drawers.find(d => d.id === 'drawer-active') || drawers[drawers.length - 1];
+        state.cashDrawer = {
+          id: loaded.id || 'drawer-active',
+          balance: loaded.balance || 0,
+          movements: loaded.movements || [],
+          shiftStart: loaded.shiftStart || null,
+          shiftId: loaded.shiftId || null,
+          staffInCharge: loaded.staffInCharge || null,
+        };
+      }
+      state.staff = await dbGetAll('staff');
+      if (state.staff.length === 0) {
+        const defaults = [
+          { id: 'staff-1', name: 'Admin', role: 'Supervisor', active: true },
+          { id: 'staff-2', name: 'Sarah Ahmad', role: 'Washer', active: true },
+          { id: 'staff-3', name: 'Mike Obi', role: 'Washer', active: true },
+          { id: 'staff-4', name: 'Grace Bello', role: 'Washer', active: true },
+        ];
+        for (const s of defaults) await dbPut('staff', s);
+        state.staff = defaults;
+      }
+      const history = await dbGetAll('shiftHistory');
+      state.shiftHistory = history.sort((a, b) => new Date(b.shiftEnd || b.shiftStart) - new Date(a.shiftEnd || a.shiftStart));
+    } catch (e) { console.warn('DB load error:', e); }
+  }
+}
+
+async function mirrorToLocal() {
+  try {
+    for (const r of state.receipts) await dbPut('receipts', r);
+    for (const o of state.orders) await dbPut('orders', o);
+    for (const c of Object.values(state.customers)) await dbPut('customers', c);
+    if (state.cashDrawer) await dbPut('cashDrawer', state.cashDrawer);
+    for (const s of state.staff) await dbPut('staff', s);
+    for (const h of state.shiftHistory) await dbPut('shiftHistory', h);
+  } catch (e) { console.warn('mirror to local failed:', e); }
+}
+
+async function backfillFromLocal() {
+  try {
+    const localReceipts = await dbGetAll('receipts');
+    for (const r of localReceipts) {
+      if (!state.receipts.some(x => x.id === r.id)) { state.receipts.push(r); await saveReceipt(r); }
+    }
+    const localOrders = await dbGetAll('orders');
+    for (const o of localOrders) {
+      if (!state.orders.some(x => x.id === o.id)) { state.orders.push(o); await saveOrder(o); }
+    }
+    const localCustomers = await dbGetAll('customers');
+    for (const c of localCustomers) {
+      if (!state.customers[c.plate]) { state.customers[c.plate] = c; await saveCustomer(c); }
+    }
+    const localStaff = await dbGetAll('staff');
+    for (const s of localStaff) {
+      if (!state.staff.some(x => x.id === s.id)) { state.staff.push(s); await saveStaff(s); }
+    }
+    const localHistory = await dbGetAll('shiftHistory');
+    for (const h of localHistory) {
+      if (!state.shiftHistory.some(x => x.id === h.id)) { state.shiftHistory.push(h); await saveShiftHistory(h); }
+    }
+  } catch (e) { console.warn('backfill from local failed:', e); }
+}
+
+async function saveReceipt(r) {
+  await dbPut('receipts', r);
+  if (serverUrlReachable()) { try { await serverPut('receipts', r); return; } catch (e) { console.warn('receipt sync failed', e); } }
+  await addPendingSync({ doc_type: 'receipts', doc_key: r.id, payload: r });
+}
+async function saveOrder(o) {
+  await dbPut('orders', o);
+  if (serverUrlReachable()) { try { await serverPut('orders', o); return; } catch (e) { console.warn('order sync failed', e); } }
+  await addPendingSync({ doc_type: 'orders', doc_key: o.id, payload: o });
+}
+async function saveCustomer(c) {
+  await dbPut('customers', c);
+  if (serverUrlReachable()) { try { await serverPut('customers', c); return; } catch (e) { console.warn('customer sync failed', e); } }
+  await addPendingSync({ doc_type: 'customers', doc_key: c.plate, payload: c });
+}
+async function saveCashDrawer(cd) {
+  await dbPut('cashDrawer', cd);
+  if (serverUrlReachable()) { try { await serverPut('cashDrawer', cd); return; } catch (e) { console.warn('drawer sync failed', e); } }
+  await addPendingSync({ doc_type: 'cashDrawer', doc_key: cd.id, payload: cd });
+}
+async function saveShiftHistory(sh) {
+  await dbPut('shiftHistory', sh);
+  if (serverUrlReachable()) { try { await serverPut('shiftHistory', sh); return; } catch (e) { console.warn('shiftHistory sync failed', e); } }
+  await addPendingSync({ doc_type: 'shiftHistory', doc_key: sh.id, payload: sh });
+}
+async function saveStaff(s) {
+  await dbPut('staff', s);
+  if (serverUrlReachable()) { try { await serverPut('staff', s); return; } catch (e) { console.warn('staff sync failed', e); } }
+  await addPendingSync({ doc_type: 'staff', doc_key: s.id, payload: s });
+}
+async function deleteStaffMember(id) {
+  await dbDelete('staff', id);
+  const tombstone = { id, _deleted: true };
+  if (serverUrlReachable()) {
+    try { await serverPut('staff', tombstone); return; }
+    catch (e) { console.warn('staff delete sync failed', e); }
+  }
+  await addPendingSync({ doc_type: 'staff', doc_key: id, payload: tombstone });
+}
 
 /* ============ OFFLINE / SYNC ============ */
 function setupOffline() {
@@ -371,10 +529,23 @@ async function syncPendingData() {
   if (syncEl) syncEl.textContent = 'Syncing...';
   try {
     const pending = await dbGetAll('pendingSync');
-    for (const item of pending) {
-      await dbDelete('pendingSync', item.id);
+    if (pending.length === 0) {
+      if (syncEl) syncEl.textContent = 'All caught up';
+      setTimeout(() => { if (syncEl) syncEl.textContent = ''; }, 2000);
+      return;
     }
-    if (syncEl) syncEl.textContent = `Synced ${pending.length} items`;
+    let sent = 0;
+    const failed = [];
+    for (const item of pending) {
+      try {
+        await serverPut(item.doc_type, item.payload);
+        await dbDelete('pendingSync', item.id);
+        sent++;
+      } catch (e) {
+        failed.push(item);
+      }
+    }
+    if (syncEl) syncEl.textContent = failed.length === 0 ? `Synced ${sent} items` : `${sent} synced, ${failed.length} waiting`;
     setTimeout(() => { if (syncEl) syncEl.textContent = ''; }, 3000);
   } catch (e) {
     if (syncEl) syncEl.textContent = 'Sync failed, will retry';
@@ -382,6 +553,7 @@ async function syncPendingData() {
 }
 
 async function addPendingSync(data) {
+  if (!serverUrlReachable()) return;
   await dbPut('pendingSync', { ...data, timestamp: Date.now() });
 }
 
@@ -732,10 +904,6 @@ function processPayment() {
     await saveReceipt(receipt);
     await saveOrder(order);
     if (plate && plate !== 'WALK-IN') await saveCustomer(state.customers[plate]);
-
-    if (!state.isOnline) {
-      await addPendingSync({ type: 'sale', receipt, order });
-    }
 
     updateBadges();
 
@@ -2207,6 +2375,7 @@ async function initApp() {
   await loadAllData();
   resolveOperatorFromSession();
   setupOffline();
+  syncPendingData();
   renderServices();
   if (typeof emailjs !== 'undefined') {
     const emailCfg = getEmailConfig();
