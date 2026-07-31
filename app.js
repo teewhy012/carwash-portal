@@ -10,7 +10,7 @@ const BANK_ACCOUNT = {
   bank: 'OPay',
   name: 'Dada Michael Temitayo',
 };
-const PROD_BACKEND = 'https://carwash-api.onrender.com';
+const PROD_BACKEND = 'https://carwash-api-ahl3.onrender.com';
 let PAY_SERVER = localStorage.getItem('pay_server_url') || (
   location.port === '3000' || location.hostname === 'localhost' || location.hostname === '127.0.0.1' || location.hostname.endsWith('.onrender.com')
     ? ''

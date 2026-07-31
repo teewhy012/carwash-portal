@@ -1,7 +1,7 @@
 const { Pool } = require('pg');
 require('dotenv').config();
 
-const ssl = process.env.DB_SSL === 'true'
+const ssl = process.env.DB_SSL === 'true' || Boolean(process.env.DATABASE_URL)
   ? { rejectUnauthorized: false }
   : false;
 
