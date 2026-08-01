@@ -20,7 +20,6 @@
   <div class="login-screen" id="loginScreen">
     <!-- Hero side -->
     <div class="login-hero">
-      <div class="login-hero-bg"></div>
       <div class="login-hero-overlay"></div>
       <div class="login-hero-particles" id="loginParticles"></div>
       <div class="floating-orb orb-1"></div>
@@ -79,46 +78,47 @@
   <!-- TOP NAV -->
   <nav class="topnav hidden" id="topnav">
     <div class="topnav-brand" onclick="navigateTo('landing')">
-      <div class="brand-icon">
-        <svg viewBox="0 0 40 40" fill="none"><circle cx="20" cy="20" r="18" stroke="currentColor" stroke-width="2"/><path d="M12 26c0-4.4 3.6-8 8-8s8 3.6 8 8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="20" cy="14" r="4" fill="currentColor" opacity=".3"/><path d="M14 10l3 3M26 10l-3 3M20 8v2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-      </div>
       <span class="brand-text">SparkClean</span>
     </div>
     <button class="hamburger" id="hamburger" onclick="toggleMobileNav()" aria-label="Menu">
       <span></span><span></span><span></span>
     </button>
     <div class="topnav-links" id="topnavLinks">
+      <button class="nav-btn" data-view="customer" onclick="switchPortal('customer')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        <span>Book Your Wash</span>
+      </button>
       <button class="nav-btn" data-view="operator" onclick="switchPortal('operator')">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
-        Orders
+        <span>Orders</span>
       </button>
       <button class="nav-btn" data-view="analytics" onclick="switchPortal('analytics')">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 16l4-8 4 4 4-8"/></svg>
-        Dashboard
+        <span>Dashboard</span>
       </button>
       <button class="nav-btn" data-view="history" onclick="switchPortal('history')">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-        Receipts
+        <span>Receipts</span>
       </button>
       <button class="nav-btn" data-view="customers" onclick="switchPortal('customers')">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-        Report
+        <span>Report</span>
       </button>
       <button class="nav-btn" data-view="staff" onclick="switchPortal('staff')">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-        Staff
+        <span>Staff</span>
       </button>
       <button class="nav-btn" data-view="cash" onclick="switchPortal('cash')">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
-        Cash
+        <span>Cash</span>
       </button>
       <button class="nav-btn" data-view="monitor" onclick="window.open('monitor.html','_blank')">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-        Monitor ↗
+        <span>Monitor ↗</span>
       </button>
       <button class="nav-btn nav-btn-logout" onclick="handleLogout()" title="Logout">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-        Logout
+        <span>Logout</span>
       </button>
     </div>
   </nav>
@@ -126,7 +126,6 @@
   <!-- ============ LANDING ============ -->
   <section class="view" id="view-landing">
     <div class="landing-hero">
-      <div class="landing-bg-car"></div>
       <div class="landing-overlay"></div>
       <div class="landing-particles" id="particles"></div>
       <div class="floating-orb orb-1"></div>
@@ -136,12 +135,6 @@
         <div class="landing-badge">Premium Car Wash Experience</div>
         <h1 class="landing-title">Your Car Deserves<br/><span class="gradient-text">The Best Care</span></h1>
         <p class="landing-subtitle">Experience professional car wash and detailing services delivered with precision, speed, and care. From quick exterior washes to premium detailing, we make every vehicle look showroom-ready.</p>
-        <div class="landing-actions">
-          <button class="btn btn-primary btn-lg" onclick="switchPortal('customer')">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-            Book Your Wash Today
-          </button>
-        </div>
         <div class="landing-features">
           <div class="lf-item"><div class="lf-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg></div><div class="lf-text"><strong>Abuja</strong><br/>141 Garki Road, FCT</div></div>
           <div class="lf-item"><div class="lf-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg></div><div class="lf-text"><strong>Lagos</strong><br/>122 Ikeja GRA</div></div>
