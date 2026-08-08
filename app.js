@@ -258,6 +258,192 @@ function toggleLoginPassword() {
   }
 }
 
+/* ============ FORGOT PASSWORD / PASSWORD RESET ============ */
+const RECOVERY_KEY = 'sparkclean_recovery';
+const RESET_SESSION_KEY = 'sparkclean_reset_session';
+
+function getRecoveryConfig() {
+  try { return JSON.parse(localStorage.getItem(RECOVERY_KEY) || '{}'); } catch { return {}; }
+}
+function saveRecoveryConfig(cfg) { localStorage.setItem(RECOVERY_KEY, JSON.stringify(cfg)); }
+
+function setResetSession(data) {
+  const payload = Object.assign({ expiresAt: Date.now() + 10 * 60 * 1000 }, data);
+  localStorage.setItem(RESET_SESSION_KEY, JSON.stringify(payload));
+}
+function getResetSession() {
+  try {
+    const s = JSON.parse(localStorage.getItem(RESET_SESSION_KEY) || 'null');
+    if (!s) return null;
+    if (Date.now() > s.expiresAt) { localStorage.removeItem(RESET_SESSION_KEY); return null; }
+    return s;
+  } catch { return null; }
+}
+function clearResetSession() { localStorage.removeItem(RESET_SESSION_KEY); }
+
+function resetMsg(el, msg, isError) {
+  if (!el) return;
+  el.textContent = msg || '';
+  el.classList.toggle('hidden', !msg);
+  el.classList.toggle('login-error', !!isError);
+  el.classList.toggle('login-success', !isError);
+}
+
+function openForgotPassword() {
+  const panel = document.getElementById('forgotPanel');
+  const form = document.getElementById('loginForm');
+  const footer = document.getElementById('loginFooter');
+  const link = document.getElementById('forgotLink');
+  if (panel) panel.classList.remove('hidden');
+  if (form) form.classList.add('hidden');
+  if (footer) footer.classList.add('hidden');
+  if (link) link.classList.add('hidden');
+  document.getElementById('resetUsername').value = document.getElementById('loginUsername')?.value?.trim() || '';
+  document.getElementById('resetSteps').innerHTML = '';
+  resetMsg(document.getElementById('resetMessage'), '', false);
+  setTimeout(() => document.getElementById('resetUsername')?.focus(), 200);
+}
+
+function closeForgotPassword() {
+  clearResetSession();
+  const panel = document.getElementById('forgotPanel');
+  const form = document.getElementById('loginForm');
+  const footer = document.getElementById('loginFooter');
+  const link = document.getElementById('forgotLink');
+  if (panel) panel.classList.add('hidden');
+  if (form) form.classList.remove('hidden');
+  if (footer) footer.classList.remove('hidden');
+  if (link) link.classList.remove('hidden');
+  setTimeout(() => document.getElementById('loginPassword')?.focus(), 200);
+}
+
+function submitResetUsername() {
+  const stored = JSON.parse(localStorage.getItem(AUTH_HASH_KEY) || '{}');
+  const username = document.getElementById('resetUsername')?.value?.trim() || '';
+  const msg = document.getElementById('resetMessage');
+  if (!stored.username) { resetMsg(msg, 'No account is configured on this device.', true); return; }
+  if (username.toLowerCase() !== (stored.username || '').toLowerCase()) { resetMsg(msg, 'Username not found. Check and try again.', true); return; }
+  renderResetMethod();
+}
+
+function renderResetMethod() {
+  const rec = getRecoveryConfig();
+  const emailMethod = !!(rec.email && isEmailConfigured());
+  const questionMethod = !!rec.question;
+  const stepArea = document.getElementById('resetSteps');
+  const msg = document.getElementById('resetMessage');
+  if (!stepArea) return;
+  resetMsg(msg, '', false);
+
+  if (!emailMethod && !questionMethod) {
+    stepArea.innerHTML = `<div class="login-error" style="margin-top:14px">No recovery method is set up on this device. Please contact your system administrator.</div>`;
+    return;
+  }
+
+  let html = '';
+  if (emailMethod) {
+    html += `<div class="login-field" style="margin-top:6px">
+      <button type="button" class="btn btn-outline login-btn" onclick="requestResetCode(this)">Send code to ${escapeHtml(rec.email)}</button>
+    </div>`;
+  }
+  if (questionMethod) {
+    if (emailMethod) html += `<div class="forgot-divider">or</div>`;
+    html += `<div class="login-field">
+      <label>Security Question</label>
+      <p class="forgot-question">${escapeHtml(rec.question)}</p>
+      <input type="text" id="resetAnswer" class="login-input" placeholder="Your answer" autocomplete="off" />
+    </div>
+    <div class="login-field">
+      <label>New Password</label>
+      <div class="login-input-wrap">
+        <input type="password" id="resetNewPassword" class="login-input" placeholder="Enter new password" autocomplete="new-password" />
+      </div>
+    </div>
+    <div class="login-field">
+      <label>Confirm New Password</label>
+      <div class="login-input-wrap">
+        <input type="password" id="resetConfirmPassword" class="login-input" placeholder="Confirm new password" autocomplete="new-password" />
+      </div>
+    </div>
+    <button type="button" class="btn btn-primary login-btn" onclick="verifyQuestionReset()">Reset Password</button>`;
+  }
+  stepArea.innerHTML = html;
+}
+
+async function requestResetCode(btn) {
+  const rec = getRecoveryConfig();
+  const msg = document.getElementById('resetMessage');
+  if (!rec.email) { resetMsg(msg, 'No recovery email configured.', true); return; }
+  const stored = JSON.parse(localStorage.getItem(AUTH_HASH_KEY) || '{}');
+  const username = document.getElementById('resetUsername')?.value?.trim() || '';
+  if (username.toLowerCase() !== (stored.username || '').toLowerCase()) { resetMsg(msg, 'Please enter the correct username first.', true); return; }
+
+  const code = String(Math.floor(100000 + Math.random() * 900000));
+  setResetSession({ username: stored.username, code });
+  if (btn) { btn.disabled = true; btn.textContent = 'Sending...'; }
+  const ok = await sendEmail(rec.email, 'SparkClean Password Reset Code', `Your SparkClean password reset code is: ${code}\n\nThis code expires in 10 minutes.\n\nIf you did not request this, you can ignore this email.`);
+  if (btn) { btn.disabled = false; btn.textContent = `Send code to ${rec.email}`; }
+  if (!ok) { clearResetSession(); resetMsg(msg, 'Failed to send the reset code. Please try again.', true); return; }
+
+  const stepArea = document.getElementById('resetSteps');
+  stepArea.innerHTML = `
+    <div class="login-field" style="margin-top:6px">
+      <label>Reset Code</label>
+      <input type="text" id="resetCode" class="login-input" placeholder="6-digit code" inputmode="numeric" maxlength="6" autocomplete="one-time-code" />
+    </div>
+    <div class="login-field">
+      <label>New Password</label>
+      <div class="login-input-wrap">
+        <input type="password" id="resetNewPassword" class="login-input" placeholder="Enter new password" autocomplete="new-password" />
+      </div>
+    </div>
+    <div class="login-field">
+      <label>Confirm New Password</label>
+      <div class="login-input-wrap">
+        <input type="password" id="resetConfirmPassword" class="login-input" placeholder="Confirm new password" autocomplete="new-password" />
+      </div>
+    </div>
+    <button type="button" class="btn btn-primary login-btn" onclick="verifyEmailReset()">Verify Code &amp; Reset</button>`;
+  resetMsg(msg, `A 6-digit code was sent to ${rec.email}. Enter it below to set your new password.`, false);
+}
+
+async function verifyEmailReset() {
+  const session = getResetSession();
+  const msg = document.getElementById('resetMessage');
+  if (!session) { resetMsg(msg, 'This reset session has expired. Please start again.', true); return; }
+  const entered = document.getElementById('resetCode')?.value?.trim() || '';
+  if (entered !== session.code) { resetMsg(msg, 'Incorrect code. Please check and try again.', true); return; }
+  await finalizeReset(msg);
+}
+
+async function verifyQuestionReset() {
+  const rec = getRecoveryConfig();
+  const msg = document.getElementById('resetMessage');
+  if (!rec.answerHash) { resetMsg(msg, 'Security question is not configured.', true); return; }
+  const answerHash = await hashPassword((document.getElementById('resetAnswer')?.value || '').trim().toLowerCase());
+  if (answerHash !== rec.answerHash) { resetMsg(msg, 'Incorrect answer. Try again.', true); return; }
+  await finalizeReset(msg);
+}
+
+async function finalizeReset(msg) {
+  const stored = JSON.parse(localStorage.getItem(AUTH_HASH_KEY) || '{}');
+  const newPass = document.getElementById('resetNewPassword')?.value || '';
+  const confirmPass = document.getElementById('resetConfirmPassword')?.value || '';
+  if (!stored.username) { resetMsg(msg, 'No account is configured on this device.', true); return; }
+  if (newPass.length < 6) { resetMsg(msg, 'New password must be at least 6 characters.', true); return; }
+  if (newPass !== confirmPass) { resetMsg(msg, 'Passwords do not match.', true); return; }
+  const hash = await hashPassword(newPass);
+  localStorage.setItem(AUTH_HASH_KEY, JSON.stringify({ username: stored.username, hash }));
+  clearResetSession();
+  clearSession();
+  document.getElementById('loginUsername').value = stored.username;
+  document.getElementById('loginPassword').value = '';
+  const stepArea = document.getElementById('resetSteps');
+  if (stepArea) stepArea.innerHTML = `<div class="login-success" style="margin-top:14px">✓ Password reset successful. Redirecting to sign in...</div>`;
+  resetMsg(msg, '', false);
+  setTimeout(() => { closeForgotPassword(); document.getElementById('loginPassword').focus(); }, 1600);
+}
+
 /* ============ INACTIVITY TIMEOUT (5 min) ============ */
 const INACTIVITY_TIMEOUT = 5 * 60 * 1000;
 let inactivityTimer = null;
@@ -2832,8 +3018,9 @@ function saveEmailConfig(cfg) { localStorage.setItem(EMAIL_CONFIG_KEY, JSON.stri
 
 function openEmailSettings() {
   const cfg = getEmailConfig();
+  const rec = getRecoveryConfig();
   openModal('Settings', `
-    <p style="color:var(--text-secondary);font-size:0.82rem;margin-bottom:12px">Configure EmailJS and OPay payment server.</p>
+    <p style="color:var(--text-secondary);font-size:0.82rem;margin-bottom:12px">Configure EmailJS, password recovery, and the OPay payment server.</p>
     <h4 style="margin:12px 0 6px;font-size:0.85rem;color:var(--accent)">Email (EmailJS)</h4>
     <p style="color:var(--text-muted);font-size:0.75rem;margin-bottom:8px">Get your keys at <a href="https://www.emailjs.com/" target="_blank" style="color:var(--accent)">emailjs.com</a></p>
     <div class="form-group"><label>Public Key</label><input type="text" id="emailPubKey" class="form-input" value="${cfg.publicKey || ''}" placeholder="your_public_key" /></div>
@@ -2841,6 +3028,11 @@ function openEmailSettings() {
     <div class="form-group"><label>Template ID</label><input type="text" id="emailTemplateId" class="form-input" value="${cfg.templateId || ''}" placeholder="template_xxxxxxx" /></div>
     <div class="form-group"><label>From Name</label><input type="text" id="emailFromName" class="form-input" value="${cfg.fromName || 'SparkClean'}" placeholder="SparkClean" /></div>
     <button class="btn btn-outline" style="width:100%;margin-top:4px;margin-bottom:16px" onclick="testEmail()">Send Test Email</button>
+    <h4 style="margin:12px 0 6px;font-size:0.85rem;color:var(--warning)">Password Recovery (Forgot Password)</h4>
+    <p style="color:var(--text-muted);font-size:0.75rem;margin-bottom:8px">Reset codes are sent to the recovery email, or via the security question. The answer is stored as a secure hash.</p>
+    <div class="form-group"><label>Recovery Email</label><input type="email" id="recEmail" class="form-input" value="${rec.email || ''}" placeholder="owner@email.com" /></div>
+    <div class="form-group"><label>Security Question</label><input type="text" id="recQuestion" class="form-input" value="${rec.question || ''}" placeholder="e.g. What is your pet's name?" /></div>
+    <div class="form-group"><label>Security Answer ${rec.answerHash ? '(leave blank to keep current)' : '(required for the question method)'}</label><input type="text" id="recAnswer" class="form-input" value="" placeholder="Answer to the security question" /></div>
     <h4 style="margin:12px 0 6px;font-size:0.85rem;color:var(--accent)">OPay Payment Server</h4>
     <p style="color:var(--text-muted);font-size:0.75rem;margin-bottom:8px">URL of the Node.js backend for auto-confirming card/POS payments</p>
     <div class="form-group"><label>Server URL</label><input type="text" id="payServerUrl" class="form-input" value="${localStorage.getItem('pay_server_url') || 'http://localhost:3000'}" placeholder="http://localhost:3000" /></div>
@@ -2848,7 +3040,7 @@ function openEmailSettings() {
   `);
 }
 
-function saveEmailSettings() {
+async function saveEmailSettings() {
   const cfg = {
     publicKey: document.getElementById('emailPubKey').value.trim(),
     serviceId: document.getElementById('emailServiceId').value.trim(),
@@ -2856,6 +3048,16 @@ function saveEmailSettings() {
     fromName: document.getElementById('emailFromName').value.trim() || 'SparkClean',
   };
   saveEmailConfig(cfg);
+  const rec = getRecoveryConfig();
+  const newAnswer = document.getElementById('recAnswer')?.value?.trim();
+  const nextRec = {
+    email: document.getElementById('recEmail')?.value?.trim() || '',
+    question: document.getElementById('recQuestion')?.value?.trim() || '',
+    answerHash: rec.answerHash,
+  };
+  if (newAnswer) nextRec.answerHash = await hashPassword(newAnswer.toLowerCase());
+  if (!nextRec.question) nextRec.answerHash = '';
+  saveRecoveryConfig(nextRec);
   const serverUrl = document.getElementById('payServerUrl')?.value?.trim();
   if (serverUrl) {
     localStorage.setItem('pay_server_url', serverUrl);

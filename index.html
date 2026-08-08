@@ -64,13 +64,31 @@
               </button>
             </div>
           </div>
+          <div class="login-forgot-row">
+            <button type="button" class="forgot-link" id="forgotLink" onclick="openForgotPassword()">Forgot password?</button>
+          </div>
           <div class="login-error hidden" id="loginError">Invalid username or password</div>
           <button type="submit" class="btn btn-primary login-btn" id="loginBtn">
             <span id="loginBtnText">Sign In</span>
             <span class="login-spinner hidden" id="loginSpinner"></span>
           </button>
         </form>
-        <div class="login-footer">SparkClean POS &copy; 2026</div>
+        <div class="login-card-alt hidden" id="forgotPanel">
+          <button type="button" class="forgot-back" onclick="closeForgotPassword()">← Back to sign in</button>
+          <h2 class="forgot-title">Reset Password</h2>
+          <p class="forgot-sub">Enter your username and choose how to recover your account.</p>
+          <div class="login-field">
+            <label for="resetUsername">Username</label>
+            <div class="login-input-wrap">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+              <input type="text" id="resetUsername" class="login-input" placeholder="Enter username" autocomplete="username" />
+            </div>
+          </div>
+          <button type="button" class="btn btn-primary login-btn" onclick="submitResetUsername()">Continue</button>
+          <div id="resetMessage" class="login-error hidden"></div>
+          <div id="resetSteps"></div>
+        </div>
+        <div class="login-footer" id="loginFooter">SparkClean POS &copy; 2026</div>
       </div>
     </div>
   </div>
