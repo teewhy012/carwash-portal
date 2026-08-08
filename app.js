@@ -17,7 +17,7 @@ let PAY_SERVER = localStorage.getItem('pay_server_url') || (
     : PROD_BACKEND
 );
 const DB_NAME = 'SparkCleanDB';
-const DB_VERSION = 5;
+const DB_VERSION = 6;
 
 // roundRect polyfill for older browsers
 if (typeof CanvasRenderingContext2D !== 'undefined' && !CanvasRenderingContext2D.prototype.roundRect) {
@@ -33,12 +33,12 @@ if (typeof CanvasRenderingContext2D !== 'undefined' && !CanvasRenderingContext2D
 }
 
 const SERVICES = [
-  { id: 'basic', name: 'Basic Wash', price: 2000, additional: 700, icon: 'droplet', desc: 'Exterior wash & dry' },
-  { id: 'radiator', name: 'Radiator Wash', price: 1000, additional: 100, icon: 'thermometer', desc: 'Radiator cleaning' },
-  { id: 'engine', name: 'Engine Wash', price: 1500, additional: 500, icon: 'settings', desc: 'Engine bay cleaning' },
-  { id: 'vacuum', name: 'Vacuum', price: 1500, additional: 300, icon: 'wind', desc: 'Interior vacuum' },
-  { id: 'polishing', name: 'Polishing', price: 1000, additional: 100, icon: 'sparkles', desc: 'Paint polishing' },
-  { id: 'interior', name: 'Interior Wash', price: 4000, additional: 1000, icon: 'sofa', desc: 'Full interior detail' },
+  { id: 'basic', name: 'Basic Wash', price: 2000, commission: 700, icon: 'droplet', desc: 'Exterior wash & dry' },
+  { id: 'radiator', name: 'Radiator Wash', price: 1000, commission: 100, icon: 'thermometer', desc: 'Radiator cleaning' },
+  { id: 'engine', name: 'Engine Wash', price: 1500, commission: 500, icon: 'settings', desc: 'Engine bay cleaning' },
+  { id: 'vacuum', name: 'Vacuum', price: 1500, commission: 300, icon: 'wind', desc: 'Interior vacuum' },
+  { id: 'polishing', name: 'Polishing', price: 1000, commission: 100, icon: 'sparkles', desc: 'Paint polishing' },
+  { id: 'interior', name: 'Interior Wash', price: 4000, commission: 1000, icon: 'sofa', desc: 'Full interior detail' },
 ];
 
 const ICONS = {
@@ -49,6 +49,32 @@ const ICONS = {
   sparkles: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l1.5 5.5L19 10l-5.5 1.5L12 17l-1.5-5.5L5 10l5.5-1.5z"/></svg>',
   sofa: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 9V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v3"/><path d="M2 11v5a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-5a2 2 0 0 0-4 0v2H6v-2a2 2 0 0 0-4 0z"/><path d="M4 18v2M20 18v2"/></svg>',
 };
+
+/* ============ COMMISSION HELPERS ============ */
+function findServiceForLine(line) {
+  if (!line) return null;
+  return SERVICES.find(x => x.id === line.id) || SERVICES.find(x => (x.name || '').toLowerCase() === (line.name || '').toLowerCase()) || null;
+}
+
+// Per-service commission breakdown for a receipt. Uses the values captured at
+// sale time (commissionByService); falls back to the current SERVICES table for
+// older receipts that predate commission tracking.
+function getCommissionBreakdown(r) {
+  if (!r) return [];
+  if (Array.isArray(r.commissionByService) && r.commissionByService.length) {
+    return r.commissionByService;
+  }
+  return (r.services || []).map(s => {
+    const svc = findServiceForLine(s);
+    return { id: s.id || (svc && svc.id), name: s.name || (svc && svc.name) || 'Service', commission: svc ? svc.commission : 0 };
+  });
+}
+
+function getCommissionForReceipt(r) {
+  if (!r) return 0;
+  if (typeof r.commission === 'number') return r.commission;
+  return getCommissionBreakdown(r).reduce((sum, c) => sum + (c.commission || 0), 0);
+}
 
 /* ============ STATE ============ */
 let state = {
@@ -69,7 +95,14 @@ let state = {
   staff: [],
   currentFilter: 'new',
   analyticsPeriod: 'week',
+  commissionDate: null,
+  commissionLedger: [],
   historyPage: 1,
+  commissionLedgerPage: 1,
+  customersPage: 1,
+  staffPage: 1,
+  cashMovementsPage: 1,
+  shiftHistoryPage: 1,
   lastReceipt: null,
   isOnline: navigator.onLine,
   pendingSync: [],
@@ -271,6 +304,7 @@ function openDB() {
       if (!d.objectStoreNames.contains('pendingSync')) d.createObjectStore('pendingSync', { keyPath: 'id', autoIncrement: true });
       if (!d.objectStoreNames.contains('staff')) d.createObjectStore('staff', { keyPath: 'id' });
       if (!d.objectStoreNames.contains('shiftHistory')) d.createObjectStore('shiftHistory', { keyPath: 'id' });
+      if (!d.objectStoreNames.contains('commissionLedger')) d.createObjectStore('commissionLedger', { keyPath: 'id' });
     };
     req.onsuccess = (e) => { db = e.target.result; resolve(db); };
     req.onerror = (e) => reject(e);
@@ -392,6 +426,7 @@ async function loadAllData() {
         }
         const history = (snap.shiftHistory || []).filter(x => !x._deleted);
         state.shiftHistory = history.sort((a, b) => new Date(b.shiftEnd || b.shiftStart) - new Date(a.shiftEnd || a.shiftStart));
+        state.commissionLedger = (snap.commissionLedger || []).filter(x => !x._deleted);
         serverLoaded = true;
         await mirrorToLocal();
         await backfillFromLocal();
@@ -433,8 +468,10 @@ async function loadAllData() {
       }
       const history = await dbGetAll('shiftHistory');
       state.shiftHistory = history.sort((a, b) => new Date(b.shiftEnd || b.shiftStart) - new Date(a.shiftEnd || a.shiftStart));
+      state.commissionLedger = await dbGetAll('commissionLedger');
     } catch (e) { console.warn('DB load error:', e); }
   }
+  try { await syncCommissionLedgerHistory(); } catch (e) { console.warn('ledger history backfill failed:', e); }
 }
 
 async function mirrorToLocal() {
@@ -445,6 +482,7 @@ async function mirrorToLocal() {
     if (state.cashDrawer) await dbPut('cashDrawer', state.cashDrawer);
     for (const s of state.staff) await dbPut('staff', s);
     for (const h of state.shiftHistory) await dbPut('shiftHistory', h);
+    for (const l of state.commissionLedger) await dbPut('commissionLedger', l);
   } catch (e) { console.warn('mirror to local failed:', e); }
 }
 
@@ -469,6 +507,10 @@ async function backfillFromLocal() {
     const localHistory = await dbGetAll('shiftHistory');
     for (const h of localHistory) {
       if (!state.shiftHistory.some(x => x.id === h.id)) { state.shiftHistory.push(h); await saveShiftHistory(h); }
+    }
+    const localLedger = await dbGetAll('commissionLedger');
+    for (const l of localLedger) {
+      if (!state.commissionLedger.some(x => x.id === l.id)) { state.commissionLedger.push(l); await saveCommissionLedger(l); }
     }
   } catch (e) { console.warn('backfill from local failed:', e); }
 }
@@ -497,6 +539,11 @@ async function saveShiftHistory(sh) {
   await dbPut('shiftHistory', sh);
   if (serverUrlReachable()) { try { await serverPut('shiftHistory', sh); return; } catch (e) { console.warn('shiftHistory sync failed', e); } }
   await addPendingSync({ doc_type: 'shiftHistory', doc_key: sh.id, payload: sh });
+}
+async function saveCommissionLedger(entry) {
+  await dbPut('commissionLedger', entry);
+  if (serverUrlReachable()) { try { await serverPut('commissionLedger', entry); return; } catch (e) { console.warn('commissionLedger sync failed', e); } }
+  await addPendingSync({ doc_type: 'commissionLedger', doc_key: entry.id, payload: entry });
 }
 async function saveStaff(s) {
   await dbPut('staff', s);
@@ -580,6 +627,7 @@ function switchPortal(portal) {
   if (portal === 'customers') renderCustomers();
   if (portal === 'cash') renderCashDrawer();
   if (portal === 'staff') renderStaffManagement();
+  if (portal === 'commission') renderCommission();
   window.scrollTo({ top: 0 });
 }
 
@@ -664,7 +712,7 @@ function renderServices() {
       <h3>${s.name}</h3>
       <p>${s.desc}</p>
       <div class="sc-price">${CURRENCY}${s.price.toLocaleString()} <span>/ base</span></div>
-      <div class="sc-additional">+${CURRENCY}${s.additional.toLocaleString()} per additional</div>
+      <div class="sc-commission">Commission: ${CURRENCY}${s.commission.toLocaleString()}</div>
     </div>
   `).join('');
   updateServiceSelection();
@@ -826,10 +874,15 @@ function processPayment() {
     const receiptNum = 'RC-' + Date.now().toString(36).toUpperCase().slice(-6);
     const now = new Date();
 
+    const commissionByService = servicesList.map(s => ({ id: s.id, name: s.name, commission: s.commission || 0 }));
+    const commissionTotal = commissionByService.reduce((sum, c) => sum + (c.commission || 0), 0);
+
     const receipt = {
       id: receiptNum,
       plateNumber: state.plateNumber ? state.plateNumber.toUpperCase() : 'WALK-IN',
       services: servicesList.map(s => ({ id: s.id, name: s.name, price: s.price })),
+      commissionByService,
+      commission: commissionTotal,
       subtotal,
       discountType: state.discountType,
       discountValue: state.discountValue,
@@ -1678,18 +1731,36 @@ function renderStaffManagement() {
   const tbody = document.getElementById('staffListBody');
   if (!tbody) return;
   if (staff.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text-muted)">No staff members</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:40px;color:var(--text-muted)">No staff members</td></tr>`;
+    renderPagination('staffPagination', state.staffPage, 1, () => {});
     return;
   }
-  tbody.innerHTML = staff.map((s, i) => {
+
+  const today = todayStr();
+  const todayCommission = {};
+  state.receipts.forEach(r => {
+    if (r.date === today && r.status !== 'refunded' && r.operator) {
+      todayCommission[r.operator] = (todayCommission[r.operator] || 0) + getCommissionForReceipt(r);
+    }
+  });
+
+  const perPage = 10;
+  const totalPages = Math.ceil(staff.length / perPage);
+  if (state.staffPage > totalPages) state.staffPage = totalPages;
+  if (state.staffPage < 1) state.staffPage = 1;
+  const start = (state.staffPage - 1) * perPage;
+  const pageData = staff.slice(start, start + perPage);
+
+  tbody.innerHTML = pageData.map((s, i) => {
     const data = staffSales[s.name] || { count: 0, total: 0 };
     return `<tr>
-      <td>${i + 1}</td>
+      <td>${start + i + 1}</td>
       <td style="font-weight:600">${escapeHtml(s.name)}</td>
       <td>${s.role}</td>
       <td><span class="customer-loyalty ${s.active ? 'loyalty-gold' : 'loyalty-bronze'}" style="font-size:0.65rem">${s.active ? 'Active' : 'Inactive'}</span></td>
       <td>${data.count}</td>
       <td style="font-weight:600">${CURRENCY}${data.total.toLocaleString()}</td>
+      <td style="font-weight:600;color:var(--success)">${CURRENCY}${(todayCommission[s.name] || 0).toLocaleString()}</td>
       <td>
         <button class="btn btn-sm btn-ghost" onclick="openEditStaffModal('${escapeJS(s.id)}')" title="Edit">✎</button>
         <button class="btn btn-sm btn-ghost" onclick="toggleStaffActive('${escapeJS(s.id)}')" title="${s.active ? 'Deactivate' : 'Activate'}">
@@ -1699,6 +1770,8 @@ function renderStaffManagement() {
       </td>
     </tr>`;
   }).join('');
+
+  renderPagination('staffPagination', state.staffPage, totalPages, i => { state.staffPage = i; renderStaffManagement(); });
 }
 
 function openAddStaffModal() {
@@ -1808,7 +1881,340 @@ function renderOperatorDropdown() {
   updateContinueBtn();
 }
 
+/* ============ COMMISSION REPORT ============ */
+const COMMISSION_PAYOUT_KEY = 'sparkclean_commission_payouts';
+
+function todayStr() {
+  return new Date().toISOString().split('T')[0];
+}
+
+// Newest date that has any non-refunded commission, so the tab never opens empty.
+function mostRecentCommissionDate() {
+  let latest = null;
+  state.receipts.forEach(r => {
+    if (r.status !== 'refunded' && getCommissionForReceipt(r) > 0 && r.date) {
+      if (!latest || r.date > latest) latest = r.date;
+    }
+  });
+  return latest;
+}
+
+function getCommissionDate() {
+  if (state.commissionDate) return state.commissionDate;
+  state.commissionDate = mostRecentCommissionDate() || todayStr();
+  return state.commissionDate;
+}
+
+function setCommissionDate() {
+  state.commissionDate = document.getElementById('commissionDate')?.value || todayStr();
+  renderCommission();
+}
+
+function getPayouts() {
+  try { return JSON.parse(localStorage.getItem(COMMISSION_PAYOUT_KEY) || '{}'); } catch { return {}; }
+}
+
+function ledgerEntryId(staff, date) {
+  return staff + '|' + date;
+}
+
+function findLedgerEntry(staff, date) {
+  return state.commissionLedger.find(e => e.id === ledgerEntryId(staff, date));
+}
+
+function isPayoutPaid(staff, date) {
+  const entry = findLedgerEntry(staff, date);
+  if (entry) return !!entry.paid;
+  return !!getPayouts()[ledgerEntryId(staff, date)];
+}
+
+// Persist a daily snapshot of each staff member's commission for `date` into the
+// audit trail ledger. Amounts are refreshed from the day's receipts, while any
+// existing paid status is preserved.
+async function syncCommissionLedger(date) {
+  const { staff } = buildCommissionData(date);
+  for (const m of staff) {
+    const id = ledgerEntryId(m.staff, date);
+    const existing = findLedgerEntry(m.staff, date);
+    const entry = {
+      id,
+      staff: m.staff,
+      date,
+      orders: m.receipts,
+      commission: m.commission,
+      byService: m.byService,
+      paid: existing ? !!existing.paid : !!getPayouts()[id],
+      paidAt: existing ? existing.paidAt : null,
+      createdAt: existing ? existing.createdAt : new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    if (existing) Object.assign(existing, entry);
+    else state.commissionLedger.push(entry);
+    try { await saveCommissionLedger(entry); } catch (e) { console.warn('commission ledger save failed', e); }
+  }
+}
+
+// Backfill ledger entries for any past days that have commission receipts but no
+// snapshot yet, so the audit trail covers the full history automatically.
+async function syncCommissionLedgerHistory() {
+  const datesWithCommission = new Set();
+  state.receipts.forEach(r => {
+    if (r.status !== 'refunded' && getCommissionForReceipt(r) > 0 && r.date) datesWithCommission.add(r.date);
+  });
+  for (const date of datesWithCommission) {
+    const hasEntry = state.commissionLedger.some(e => e.date === date);
+    if (!hasEntry) {
+      try { await syncCommissionLedger(date); } catch (e) { console.warn('ledger backfill failed', e); }
+    }
+  }
+}
+
+async function toggleCommissionPaid(staff, date) {
+  const d = date || getCommissionDate();
+  const payouts = getPayouts();
+  const key = ledgerEntryId(staff, d);
+  payouts[key] = !payouts[key];
+  localStorage.setItem(COMMISSION_PAYOUT_KEY, JSON.stringify(payouts));
+
+  let entry = findLedgerEntry(staff, d);
+  if (!entry) {
+    entry = {
+      id: key, staff, date: d, orders: 0, commission: 0, byService: {},
+      paid: payouts[key], paidAt: payouts[key] ? new Date().toISOString() : null,
+      createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+    };
+    state.commissionLedger.push(entry);
+  } else {
+    entry.paid = payouts[key];
+    entry.paidAt = payouts[key] ? new Date().toISOString() : null;
+    entry.updatedAt = new Date().toISOString();
+  }
+  await saveCommissionLedger(entry);
+  renderCommission();
+}
+
+function buildCommissionData(date) {
+  const receipts = state.receipts.filter(r =>
+    r.date === date &&
+    r.status !== 'refunded' &&
+    (getCommissionForReceipt(r) > 0)
+  );
+
+  const staffMap = {};
+  const totals = { receipts: 0, commission: 0 };
+
+  receipts.forEach(r => {
+    const op = (r.operator || 'Unassigned').trim() || 'Unassigned';
+    if (!staffMap[op]) staffMap[op] = { staff: op, receipts: 0, commission: 0, byService: {} };
+    staffMap[op].receipts++;
+    staffMap[op].commission += getCommissionForReceipt(r);
+    getCommissionBreakdown(r).forEach(c => {
+      const name = c.name || 'Service';
+      staffMap[op].byService[name] = (staffMap[op].byService[name] || 0) + (c.commission || 0);
+    });
+    totals.receipts++;
+    totals.commission += getCommissionForReceipt(r);
+  });
+
+  return {
+    staff: Object.values(staffMap).sort((a, b) => b.commission - a.commission),
+    totals,
+    serviceNames: SERVICES.map(s => s.name),
+  };
+}
+
+async function renderCommission() {
+  const date = getCommissionDate();
+  const dateInput = document.getElementById('commissionDate');
+  if (dateInput && dateInput.value !== date) dateInput.value = date;
+
+  await syncCommissionLedger(date);
+
+  const { staff, totals, serviceNames } = buildCommissionData(date);
+
+  document.getElementById('commissionDateLabel').textContent = new Date(date + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+  const paidCount = staff.filter(s => isPayoutPaid(s.staff, date)).length;
+
+  document.getElementById('commissionKpis').innerHTML = [
+    kpiCard('Total Commission', `${CURRENCY}${totals.commission.toLocaleString()}`, null, ''),
+    kpiCard('Services Rendered', totals.receipts.toLocaleString(), null, ''),
+    kpiCard('Staff Earning', staff.length.toLocaleString(), null, ''),
+    kpiCard('Paid Out', paidCount + ' / ' + staff.length, null, ''),
+  ].join('');
+
+  const tbody = document.getElementById('commissionBody');
+  if (!tbody) return;
+
+  if (staff.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="${6 + serviceNames.length}" style="text-align:center;padding:40px;color:var(--text-muted)">No commissions recorded for this date</td></tr>`;
+  } else {
+    const grand = staff.reduce((s, m) => s + m.commission, 0);
+    tbody.innerHTML = staff.map((m, i) => {
+      const paid = isPayoutPaid(m.staff, date);
+      const pct = grand > 0 ? Math.round(m.commission / grand * 100) : 0;
+      return `<tr>
+        <td>${i + 1}</td>
+        <td style="font-weight:600">${escapeHtml(m.staff)}</td>
+        <td>${m.receipts}</td>
+        ${serviceNames.map(name => `<td>${CURRENCY}${(m.byService[name] || 0).toLocaleString()}</td>`).join('')}
+        <td style="font-weight:700;color:var(--success)">${CURRENCY}${m.commission.toLocaleString()}</td>
+        <td>
+          <button class="btn btn-sm ${paid ? 'btn-success' : 'btn-ghost'}" style="${paid ? 'background:var(--success);color:#fff' : ''}" onclick="toggleCommissionPaid('${escapeJS(m.staff)}','${date}')">
+            ${paid ? '✓ Paid' : 'Mark Paid'}
+          </button>
+        </td>
+        <td style="font-size:0.72rem;color:var(--text-muted)">${pct}%</td>
+      </tr>`;
+    }).join('');
+  }
+
+  renderCommissionLedger();
+}
+
+function buildCommissionRows() {
+  const date = getCommissionDate();
+  const { staff, serviceNames } = buildCommissionData(date);
+  return staff.map((m, i) => {
+    const row = {
+      '#': i + 1,
+      'Staff': m.staff,
+      'Orders': m.receipts,
+      'Status': isPayoutPaid(m.staff, date) ? 'Paid' : 'Due',
+    };
+    serviceNames.forEach(name => { row[name] = m.byService[name] || 0; });
+    row['Total Commission'] = m.commission;
+    return row;
+  });
+}
+
+function exportCommissionReport(format) {
+  const date = getCommissionDate();
+  const rows = buildCommissionRows();
+  if (rows.length === 0) {
+    alert('No commission data to export for the selected date.');
+    return;
+  }
+  if (format === 'csv') exportToCSV(rows, `commission_${date}`);
+  else exportToExcel(rows, `commission_${date}`);
+}
+
+/* ============ COMMISSION AUDIT TRAIL ============ */
+function getCommissionLedgerFilters() {
+  return {
+    from: document.getElementById('ledgerDateFrom')?.value || '',
+    to: document.getElementById('ledgerDateTo')?.value || '',
+    staff: document.getElementById('ledgerStaff')?.value || '',
+  };
+}
+
+function filterCommissionLedger() {
+  const { from, to, staff } = getCommissionLedgerFilters();
+  return [...state.commissionLedger]
+    .filter(e => {
+      if (from && e.date < from) return false;
+      if (to && e.date > to) return false;
+      if (staff && e.staff !== staff) return false;
+      return true;
+    })
+    .sort((a, b) => (b.date === a.date ? b.staff.localeCompare(a.staff) : b.date.localeCompare(a.date)));
+}
+
+function renderCommissionLedger() {
+  const tbody = document.getElementById('commissionLedgerBody');
+  if (!tbody) return;
+
+  const staffSel = document.getElementById('ledgerStaff');
+  if (staffSel) {
+    const distinctStaff = [...new Set(state.commissionLedger.map(e => e.staff))].sort((a, b) => a.localeCompare(b));
+    const current = staffSel.value;
+    staffSel.innerHTML = '<option value="">All Staff</option>' +
+      distinctStaff.map(s => `<option value="${escapeHtml(s)}" ${s === current ? 'selected' : ''}>${escapeHtml(s)}</option>`).join('');
+  }
+
+  const entries = filterCommissionLedger();
+
+  const total = entries.reduce((s, e) => s + (e.commission || 0), 0);
+  const paidEntries = entries.filter(e => e.paid);
+  document.getElementById('ledgerTotals').innerHTML = [
+    kpiCard('Ledger Entries', entries.length.toLocaleString(), null, ''),
+    kpiCard('Audited Commission', `${CURRENCY}${total.toLocaleString()}`, null, ''),
+    kpiCard('Paid', paidEntries.length.toLocaleString(), null, ''),
+    kpiCard('Pending', (entries.length - paidEntries.length).toLocaleString(), null, ''),
+  ].join('');
+
+  const perPage = 10;
+  const totalPages = Math.ceil(entries.length / perPage) || 1;
+  if (state.commissionLedgerPage > totalPages) state.commissionLedgerPage = totalPages;
+  if (state.commissionLedgerPage < 1) state.commissionLedgerPage = 1;
+  const start = (state.commissionLedgerPage - 1) * perPage;
+  const pageData = entries.slice(start, start + perPage);
+
+  if (entries.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text-muted)">No audit trail entries — each day's commission is recorded here automatically</td></tr>`;
+  } else {
+    tbody.innerHTML = pageData.map(e => `
+      <tr>
+        <td>${new Date(e.date + 'T00:00:00').toLocaleDateString()}</td>
+        <td style="font-weight:600">${escapeHtml(e.staff)}</td>
+        <td>${e.orders}</td>
+        <td style="font-weight:700;color:var(--success)">${CURRENCY}${(e.commission || 0).toLocaleString()}</td>
+        <td>${e.paid ? '<span class="customer-loyalty loyalty-gold" style="font-size:0.65rem">Paid</span>' : '<span class="customer-loyalty loyalty-bronze" style="font-size:0.65rem">Due</span>'}</td>
+        <td>${e.paidAt ? new Date(e.paidAt).toLocaleString() : '—'}</td>
+        <td>
+          <button class="btn btn-sm ${e.paid ? 'btn-ghost' : 'btn-success'}" style="${e.paid ? 'color:var(--text-secondary)' : 'background:var(--success);color:#fff'}" onclick="toggleCommissionPaid('${escapeJS(e.staff)}','${e.date}')">
+            ${e.paid ? 'Undo' : 'Mark Paid'}
+          </button>
+        </td>
+      </tr>
+    `).join('');
+  }
+
+  renderPagination('ledgerPagination', state.commissionLedgerPage, totalPages, i => { state.commissionLedgerPage = i; renderCommissionLedger(); });
+}
+
+function buildCommissionLedgerRows() {
+  return filterCommissionLedger().map((e, i) => {
+    const row = {
+      '#': i + 1,
+      'Date': e.date,
+      'Staff': e.staff,
+      'Orders': e.orders,
+      'Status': e.paid ? 'Paid' : 'Due',
+      'Paid At': e.paidAt ? new Date(e.paidAt).toLocaleString() : '',
+    };
+    SERVICES.forEach(s => { row[s.name] = (e.byService && e.byService[s.name]) || 0; });
+    row['Total Commission'] = e.commission || 0;
+    return row;
+  });
+}
+
+function exportCommissionLedger(format) {
+  const rows = buildCommissionLedgerRows();
+  if (rows.length === 0) {
+    alert('No audit trail entries to export.');
+    return;
+  }
+  const stamp = todayStr();
+  if (format === 'csv') exportToCSV(rows, `commission_ledger_${stamp}`);
+  else exportToExcel(rows, `commission_ledger_${stamp}`);
+}
+
 /* ============ RECEIPT HISTORY ============ */
+function renderPagination(containerId, currentPage, totalPages, onPage) {
+  const pag = document.getElementById(containerId);
+  if (!pag) return;
+  pag.innerHTML = '';
+  if (totalPages <= 1) return;
+  for (let i = 1; i <= totalPages; i++) {
+    const btn = document.createElement('button');
+    btn.textContent = i;
+    btn.className = i === currentPage ? 'active' : '';
+    btn.onclick = () => onPage(i);
+    pag.appendChild(btn);
+  }
+}
+
 function renderReceiptHistory() {
   const search = document.getElementById('searchReceipts')?.value?.toLowerCase() || '';
   const filter = document.getElementById('historyFilter')?.value || 'all';
@@ -1829,7 +2235,7 @@ function renderReceiptHistory() {
   if (dateFrom) filtered = filtered.filter(r => r.date >= dateFrom);
   if (dateTo) filtered = filtered.filter(r => r.date <= dateTo);
 
-  const perPage = 15;
+  const perPage = 10;
   const totalPages = Math.ceil(filtered.length / perPage) || 1;
   if (state.historyPage > totalPages) state.historyPage = totalPages;
   const start = (state.historyPage - 1) * perPage;
@@ -1838,7 +2244,7 @@ function renderReceiptHistory() {
   const tbody = document.getElementById('historyBody');
   if (!tbody) return;
   if (pageData.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;padding:40px;color:var(--text-muted)">No receipts found</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="11" style="text-align:center;padding:40px;color:var(--text-muted)">No receipts found</td></tr>`;
   } else {
     tbody.innerHTML = pageData.map(r => `
       <tr>
@@ -1849,6 +2255,7 @@ function renderReceiptHistory() {
         <td>${CURRENCY}${r.subtotal.toLocaleString()}</td>
         <td>${r.discountAmount > 0 ? `<span class="discount-badge">-${CURRENCY}${r.discountAmount.toLocaleString()}</span>` : '—'}</td>
         <td><strong>${CURRENCY}${r.total.toLocaleString()}</strong></td>
+        <td><span style="color:var(--success);font-weight:600">${CURRENCY}${getCommissionForReceipt(r).toLocaleString()}</span></td>
         <td>${r.paymentMethod === 'cash' ? 'Cash' : 'Card'}</td>
         <td>${escapeHtml(r.operator || '—')}</td>
         <td style="white-space:nowrap">
@@ -1860,17 +2267,7 @@ function renderReceiptHistory() {
   }
 
   // Pagination
-  const pag = document.getElementById('historyPagination');
-  if (pag) {
-    pag.innerHTML = '';
-    for (let i = 1; i <= totalPages; i++) {
-      const btn = document.createElement('button');
-      btn.textContent = i;
-      btn.className = i === state.historyPage ? 'active' : '';
-      btn.onclick = () => { state.historyPage = i; renderReceiptHistory(); };
-      pag.appendChild(btn);
-    }
-  }
+  renderPagination('historyPagination', state.historyPage, totalPages, i => { state.historyPage = i; renderReceiptHistory(); });
 }
 
 function viewReceipt(id) {
@@ -1891,6 +2288,7 @@ function viewReceipt(id) {
       <div style="display:flex;justify-content:space-between"><span>Subtotal</span><span>${CURRENCY}${r.subtotal.toLocaleString()}</span></div>
       ${r.discountAmount > 0 ? `<div style="display:flex;justify-content:space-between;color:var(--warning)"><span>Discount</span><span>-${CURRENCY}${r.discountAmount.toLocaleString()}</span></div>` : ''}
       <div style="display:flex;justify-content:space-between;font-weight:bold;font-size:15px;margin-top:4px"><span>Total</span><span>${CURRENCY}${r.total.toLocaleString()}</span></div>
+      <div style="display:flex;justify-content:space-between;color:var(--success);font-weight:600"><span>Commission</span><span>${CURRENCY}${getCommissionForReceipt(r).toLocaleString()}</span></div>
       <hr style="border:none;border-top:1px dashed #555;margin:8px 0"/>
       <div><strong>Payment:</strong> ${r.paymentMethod === 'cash' ? 'Cash' : 'Card/POS'}</div>
       ${r.paymentMethod === 'online' ? `<div style="margin-top:6px;padding:8px;background:var(--surface);border-radius:6px;font-size:0.8rem"><strong>Transfer to:</strong><br/>${BANK_ACCOUNT.bank} — ${BANK_ACCOUNT.name}<br/>Account: ${BANK_ACCOUNT.number}</div>` : ''}
@@ -1972,13 +2370,22 @@ function renderCustomers() {
   if (!tbody) return;
   if (customers.length === 0) {
     tbody.innerHTML = `<tr><td colspan="10" class="empty-state"><h3>No customers yet</h3><p>Customers will appear after the first sale</p></td></tr>`;
+    renderPagination('customersPagination', state.customersPage, 1, () => {});
     return;
   }
-  tbody.innerHTML = customers.map((c, i) => {
+
+  const perPage = 10;
+  const totalPages = Math.ceil(customers.length / perPage);
+  if (state.customersPage > totalPages) state.customersPage = totalPages;
+  if (state.customersPage < 1) state.customersPage = 1;
+  const start = (state.customersPage - 1) * perPage;
+  const pageData = customers.slice(start, start + perPage);
+
+  tbody.innerHTML = pageData.map((c, i) => {
     const tier = c.loyaltyTier || computeLoyaltyTier(c.totalSpent, c.visits);
     const services = (c.recentServices || []).join(', ') || '—';
     return `<tr>
-      <td>${i + 1}</td>
+      <td>${start + i + 1}</td>
       <td style="font-weight:600">${escapeHtml(c.name || 'Guest')}</td>
       <td style="color:var(--accent);font-weight:600">${c.plate}</td>
       <td style="font-size:0.78rem;color:var(--text-secondary)">${c.phone || '—'}</td>
@@ -1990,6 +2397,8 @@ function renderCustomers() {
       <td style="font-size:0.75rem;color:var(--text-secondary)">${services}</td>
     </tr>`;
   }).join('');
+
+  renderPagination('customersPagination', state.customersPage, totalPages, i => { state.customersPage = i; renderCustomers(); });
 }
 
 function editCustomer(plate) {
@@ -2147,8 +2556,15 @@ function renderCashDrawer() {
   const movements = [...cd.movements].reverse();
   if (movements.length === 0) {
     movEl.innerHTML = `<div class="empty-state" style="padding:30px"><h3>No cash movements</h3><p>Start a shift to begin tracking</p></div>`;
+    renderPagination('cashMovementsPagination', state.cashMovementsPage, 1, () => {});
   } else {
-    movEl.innerHTML = movements.map(m => {
+    const perPage = 10;
+    const totalPages = Math.ceil(movements.length / perPage);
+    if (state.cashMovementsPage > totalPages) state.cashMovementsPage = totalPages;
+    if (state.cashMovementsPage < 1) state.cashMovementsPage = 1;
+    const start = (state.cashMovementsPage - 1) * perPage;
+    const pageData = movements.slice(start, start + perPage);
+    movEl.innerHTML = pageData.map(m => {
       const icons = { sale: '💰 Sale', 'cash-in': '📥 Cash In', 'cash-out': '📤 Cash Out', 'shift-start': '🟢 Shift Start', 'shift-end': '🔴 Shift End' };
       const labels = { sale: 'Sale', 'cash-in': 'Cash In', 'cash-out': 'Cash Out', 'shift-start': 'Shift Started', 'shift-end': 'Shift Ended' };
       return `
@@ -2164,14 +2580,22 @@ function renderCashDrawer() {
         </div>
       </div>`;
     }).join('');
+    renderPagination('cashMovementsPagination', state.cashMovementsPage, totalPages, i => { state.cashMovementsPage = i; renderCashDrawer(); });
   }
 
   const histEl = document.getElementById('shiftHistoryList');
   if (histEl) {
     if (state.shiftHistory.length === 0) {
       histEl.innerHTML = `<div class="empty-state" style="padding:20px"><p>No previous shifts recorded</p></div>`;
+      renderPagination('shiftHistoryPagination', state.shiftHistoryPage, 1, () => {});
     } else {
-      histEl.innerHTML = state.shiftHistory.map(s => {
+      const perPage = 10;
+      const totalPages = Math.ceil(state.shiftHistory.length / perPage);
+      if (state.shiftHistoryPage > totalPages) state.shiftHistoryPage = totalPages;
+      if (state.shiftHistoryPage < 1) state.shiftHistoryPage = 1;
+      const start = (state.shiftHistoryPage - 1) * perPage;
+      const pageData = state.shiftHistory.slice(start, start + perPage);
+      histEl.innerHTML = pageData.map(s => {
         const sales = (s.movements || []).filter(m => m.type === 'sale').reduce((sum, m) => sum + m.amount, 0);
         const ins = (s.movements || []).filter(m => m.type === 'cash-in').reduce((sum, m) => sum + m.amount, 0);
         const outs = (s.movements || []).filter(m => m.type === 'cash-out').reduce((sum, m) => sum + m.amount, 0);
@@ -2190,6 +2614,7 @@ function renderCashDrawer() {
           </div>
         </div>`;
       }).join('');
+      renderPagination('shiftHistoryPagination', state.shiftHistoryPage, totalPages, i => { state.shiftHistoryPage = i; renderCashDrawer(); });
     }
   }
 }

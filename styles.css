@@ -165,6 +165,7 @@ body>*{position:relative;z-index:1}
 .sc-price{font-size:1rem;font-weight:800}
 .sc-price span{font-size:0.7rem;font-weight:400;color:var(--text-muted)}
 .sc-additional{font-size:0.7rem;color:var(--text-muted);margin-top:3px}
+.sc-commission{font-size:0.7rem;color:var(--success);margin-top:3px;font-weight:600}
 
 /* DISCOUNT ROW */
 .discount-row{margin-top:20px;padding:16px 20px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg)}
